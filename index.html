@@ -78,7 +78,8 @@ label{display:block;font-size:14px;color:var(--mute);margin:10px 0 4px}
 .opts legend{font-size:14px;color:var(--mute);padding:0;margin-bottom:4px}
 .opt{display:flex;gap:10px;align-items:center;min-height:44px;margin:0;font-size:16px;color:var(--ink);cursor:pointer}
 .opt input{width:20px;height:20px;flex:0 0 auto;accent-color:var(--bg)}
-.opt span{color:var(--mute);font-size:14px}
+.opt small{display:block;color:var(--mute);font-size:14px}
+.opt b{font-weight:500}
 .grp{display:flex;gap:8px;align-items:center;margin-top:8px}
 .grp input{flex:1}
 .grp small{flex:0 0 auto;color:var(--mute);font-size:14px;min-width:4em;text-align:right}
@@ -193,8 +194,8 @@ label{display:block;font-size:14px;color:var(--mute);margin:10px 0 4px}
    <div id="apkgBox" hidden>
     <fieldset class="opts">
      <legend>匯入到哪裡</legend>
-     <label class="opt"><input type="radio" name="apkgTo" value="new" checked> 匯入到新牌組<span id="apkgNewHint"></span></label>
-     <label class="opt"><input type="radio" name="apkgTo" value="cur"> 匯入到目前牌組「<span id="apkgCurName"></span>」</label>
+     <label class="opt"><input type="radio" name="apkgTo" value="new" checked><span>匯入到新牌組<small id="apkgNewHint"></small></span></label>
+     <label class="opt"><input type="radio" name="apkgTo" value="cur"><span>匯入到目前牌組「<b id="apkgCurName"></b>」</span></label>
     </fieldset>
     <div id="apkgGroups"></div>
     <div class="row" style="margin-top:12px"><button class="pri" id="apkgOk">匯入</button><button id="apkgCancel" style="flex:0 0 auto">取消</button></div>
@@ -536,7 +537,7 @@ function showApkg(d){
  apkgData=d;$('#apkgBox').hidden=false;
  const taken=new Set(S.decks.map(x=>x.name));
  $('#apkgCurName').textContent=(S.decks.find(x=>x.id===S.cur)||{}).name||'';
- $('#apkgNewHint').textContent=d.groups.length>1?`（每個 Anki 牌組各建一個，共 ${d.groups.length} 個）`:'';
+ $('#apkgNewHint').textContent=d.groups.length>1?`每個 Anki 牌組各建一個，共 ${d.groups.length} 個`:'';
  $('#apkgGroups').innerHTML=d.groups.map((g,i)=>`<div class="grp"><input type="text" data-gi="${i}" value="${esc(uniqueName(g.name,taken))}" aria-label="新牌組名稱"><small>${g.rows.length} 張</small></div>`).join('');
  document.querySelector('input[name=apkgTo][value=new]').checked=true;$('#apkgGroups').hidden=false;
 }
