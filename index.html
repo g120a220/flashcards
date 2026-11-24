@@ -278,7 +278,7 @@ mark{background:var(--hi);color:#1a1a1a;padding:0 3px;border-radius:3px;box-deco
   </div>
   <div class="panel">
    <h2>設定</h2>
-   <p class="note">版本 v6（chunk 卡）</p>
+   <p class="note">版本 v6.1</p>
    <label for="lim">每個牌組每天的新卡上限</label><input type="number" id="lim" min="0" max="999">
    <label for="pauseAt">今天待複習超過幾張時暫停新卡（0 表示不暫停）</label><input type="number" id="pauseAt" min="0" max="9999">
    <label for="roundMin">「一輪」的時間（分鐘）</label><input type="number" id="roundMin" min="1" max="120">
@@ -350,7 +350,7 @@ normalize(S);
 function save(){try{localStorage.setItem(K,JSON.stringify(S));canStore=true}catch(e){canStore=false}$('#warn').hidden=canStore}
 save();
 
-let view='study',cur=null,showBack=false,undoStack=[],timer=null,drill=null,listF='all',round=null,roundT=null;
+let view='study',cur=null,pin=null,showBack=false,undoStack=[],timer=null,drill=null,listF='all',round=null,roundT=null;
 const toast=t=>{const e=$('#toast');e.textContent=t;e.classList.add('on');clearTimeout(e._t);e._t=setTimeout(()=>e.classList.remove('on'),1800)};
 const deckCards=()=>S.cards.filter(c=>c.deck===S.cur);
 function todayN(){if(S.today.day!==dayKey())S.today={day:dayKey(),n:{}};return S.today.n[S.cur]||0}
@@ -464,7 +464,11 @@ function renderStudy(){
   const Q=queue();
   $('#stats').innerHTML=`<span><b>${Q.nw.length}</b>新卡</span><span><b>${Q.lrnAll.length}</b>學習中</span><span><b>${Q.rev.length}</b>待複習</span>`;
   $('#pauseNote').hidden=!Q.paused;if(Q.paused)$('#pauseNote').textContent=`今天待複習 ${Q.revAll} 張，超過 ${S.cfg.pauseAt} 張，先暫停新卡（可在設定調整）`;
-  cur=Q.next;
+  // 目前這張卡固定住，直到評分才換；不會因為別張學習中的卡到期而被換掉
+  const pc=pin&&S.cards.find(c=>c.id===pin.id);
+  if(pc&&pc.deck===S.cur&&topicOK(pc)&&dirsFor(pc).includes(pin.dir))cur={c:pc,dir:pin.dir,s:stOf(pc,pin.dir)};
+  else{cur=Q.next;showBack=false}
+  pin=cur?{id:cur.c.id,dir:cur.dir}:null;
   if(!cur){$('#editCur').hidden=true;
    if(Q.wait){const ms=Q.wait.s.due-Date.now();g.innerHTML=`<div class="card done"><b>稍等一下</b><p class="note">下一張學習中的卡片約 ${esc(fmt(ms))}後出現。</p></div>`;timer=setTimeout(renderStudy,Math.min(Math.max(ms,1e3),3e4));return}
    const total=deckCards().length;
@@ -502,7 +506,7 @@ function grade(q){
  }
  if(drill){const id=drill.q.shift();if(q===1)drill.q.push(id)}
  if(round){round.n++;$('#roundN').textContent=round.n}
- showBack=false;save();renderStudy();
+ showBack=false;pin=null;save();renderStudy();
 }
 // 只唸英文：中日韓文字一律去掉，沒有英文字母就不唸
 let enVoice=null;
@@ -629,7 +633,7 @@ document.addEventListener('keydown',e=>{
 $('#undo').addEventListener('click',()=>{const u=undoStack.pop();if(!u)return;const i=S.cards.findIndex(c=>c.id===u.card.id);if(i>-1)S.cards[i]=u.card;S.today=u.today;
  if(u.lk){if(u.lp)S.log[u.lk]=u.lp;else delete S.log[u.lk]}
  if(u.drill)drill=u.drill;
- if(round&&round.n>0){round.n--;$('#roundN').textContent=round.n}showBack=false;save();renderStudy();toast('已復原')});
+ if(round&&round.n>0){round.n--;$('#roundN').textContent=round.n}showBack=false;pin=null;save();renderStudy();toast('已復原')});
 $('#editCur').addEventListener('click',()=>cur&&editCard(cur.c.id));
 $('#tW').addEventListener('click',()=>setFormType(false));
 $('#tK').addEventListener('click',()=>setFormType(true));
