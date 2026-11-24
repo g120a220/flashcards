@@ -121,9 +121,9 @@ label{display:block;font-size:14px;color:var(--mute);margin:10px 0 4px}
  <section id="io" hidden>
   <div class="panel">
    <h2>匯入到目前牌組</h2>
-   <p class="note">一行一張：<code>單字,意思,例句</code>。從 Excel 或 Google 試算表直接複製貼上（Tab 分隔）也可以。</p>
+   <p class="note">一行一張：<code>單字,意思,例句</code>。從 Excel 或 Google 試算表直接複製貼上（Tab 分隔）也可以。也能選 Anki 的 <code>.apkg</code> 檔，會取每張筆記的前三個欄位。</p>
    <textarea id="imp" placeholder="ubiquitous,無所不在的,Smartphones are ubiquitous."></textarea>
-   <div class="row" style="margin-top:10px"><input type="file" id="impFile" accept=".csv,.txt,.tsv"><button class="pri" id="impBtn" style="flex:0 0 auto">匯入</button></div>
+   <div class="row" style="margin-top:10px"><input type="file" id="impFile"><button class="pri" id="impBtn" style="flex:0 0 auto">匯入</button></div>
   </div>
   <div class="panel">
    <h2>備份</h2>
@@ -295,7 +295,33 @@ $('#list').addEventListener('click',e=>{
  const ed=e.target.closest('[data-ed]');if(ed){editCard(ed.dataset.ed);return}
  const del=e.target.closest('[data-del]');if(del)armed(del,'刪除',()=>{S.cards=S.cards.filter(c=>c.id!==del.dataset.del);save();renderCards();toast('已刪除')});
 });
-$('#impFile').addEventListener('change',e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{$('#imp').value=r.result;toast('檔案已讀取，按「匯入」')};r.readAsText(f)});
+const loadJs=src=>new Promise((ok,no)=>{const s=document.createElement('script');s.src=src;s.onload=ok;s.onerror=()=>no(new Error('無法載入 '+src));document.head.appendChild(s)});
+function ankiText(h){
+ h=String(h||'').replace(/\[sound:[^\]]*\]/g,'').replace(/\{\{c\d+::(.*?)(::[^}]*)?\}\}/g,'$1').replace(/<br\s*\/?>|<\/?(div|p|li)[^>]*>/gi,' ');
+ const t=new DOMParser().parseFromString(h,'text/html').body.textContent||'';
+ return t.replace(/[\t\r\n\u00a0]+/g,' ').replace(/\s{2,}/g,' ').trim();
+}
+async function readApkg(file){
+ if(!window.JSZip)await loadJs('lib/jszip.min.js');
+ let zip;try{zip=await JSZip.loadAsync(file)}catch(e){throw new Error('不是有效的 apkg 檔')}
+ const f=zip.file('collection.anki21b')||zip.file('collection.anki21')||zip.file('collection.anki2');
+ if(!f)throw new Error('apkg 裡找不到卡片資料');
+ let buf=await f.async('uint8array');
+ if(buf[0]===0x28&&buf[1]===0xb5&&buf[2]===0x2f&&buf[3]===0xfd){if(!window.fzstd)await loadJs('lib/fzstd.js');buf=fzstd.decompress(buf)}
+ if(!window.initSqlJs)await loadJs('lib/sql-wasm.js');
+ const SQL=await initSqlJs({locateFile:n=>'lib/'+n}),db=new SQL.Database(buf);
+ try{const r=db.exec('SELECT flds FROM notes ORDER BY id');
+  return (r[0]?.values||[]).map(([x])=>String(x).split('\x1f').slice(0,3).map(ankiText)).filter(r=>r[0]&&r[1])}
+ finally{db.close()}
+}
+$('#impFile').addEventListener('change',async e=>{const f=e.target.files[0];if(!f)return;
+ if(/\.(apkg|colpkg)$/i.test(f.name)){
+  toast('讀取 apkg 中…');
+  try{const rows=await readApkg(f);if(!rows.length){toast('apkg 裡沒有可用的卡片');return}
+   $('#imp').value=rows.map(r=>r.join('\t')).join('\n');toast(`讀到 ${rows.length} 張，確認後按「匯入」`)}
+  catch(err){console.error(err);toast('apkg 讀取失敗：'+err.message)}
+  return}
+ const r=new FileReader();r.onload=()=>{$('#imp').value=r.result;toast('檔案已讀取，按「匯入」')};r.readAsText(f)});
 $('#impBtn').addEventListener('click',()=>{
  const rows=parseLines($('#imp').value);if(!rows.length){toast('沒有可匯入的內容');return}
  const have=new Set(deckCards().map(c=>c.f.toLowerCase()));let n=0,skip=0;

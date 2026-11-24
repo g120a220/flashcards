@@ -1,7 +1,7 @@
 // 離線快取：第一次打開時把頁面存起來，之後沒網路也能開。
 // 改了 index.html 之後，把下面的版本號 +1，手機才會抓到新版。
-const CACHE = 'flashbox-v1';
-const FILES = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png'];
+const CACHE = 'flashbox-v2';
+const FILES = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png', './lib/jszip.min.js', './lib/sql-wasm.js', './lib/sql-wasm.wasm', './lib/fzstd.js'];
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES)).then(() => self.skipWaiting()));
 });
