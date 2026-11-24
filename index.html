@@ -107,6 +107,12 @@ label{display:block;font-size:14px;color:var(--mute);margin:10px 0 4px}
 .hbar .tr{background:var(--track);border-radius:6px;height:14px;overflow:hidden}
 .hbar .tr i{display:block;height:100%;background:var(--bar);border-radius:6px}
 .hbar b{text-align:right;font-family:"Space Grotesk",sans-serif}
+.chips{display:flex;gap:8px;margin-bottom:10px}
+.chips button{flex:1;border-radius:999px}
+.panel .chips button[aria-pressed=true]{background:var(--bg);color:#fff}
+.drillbar{display:flex;gap:10px;justify-content:center;align-items:center;color:var(--on);margin:4px 0 12px;font-size:15px}
+.drillbar button{min-height:36px;padding:0 12px}
+.list .hard{color:var(--red);font-weight:500;font-style:normal}
 .toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:#141a2e;color:#fff;padding:10px 16px;border-radius:10px;font-size:14px;opacity:0;transition:opacity .2s;pointer-events:none}
 .toast.on{opacity:1}
 [hidden]{display:none!important}
@@ -150,8 +156,10 @@ label{display:block;font-size:14px;color:var(--mute);margin:10px 0 4px}
    </form>
   </div>
   <div class="panel">
+   <div class="chips" role="group" aria-label="篩選"><button id="fAll" aria-pressed="true">全部</button><button id="fHard" aria-pressed="false">困難卡</button></div>
    <input type="search" id="q" placeholder="搜尋單字或意思">
    <p class="note" id="cnt"></p>
+   <div id="hardBox" hidden><p class="note">困難卡：忘記 2 次以上、難度係數偏低（ease ≤ 2.0），或最近 3 次有 2 次按「忘了」。</p><button class="pri" id="drillBtn" style="width:100%">集中練習困難卡</button></div>
    <ul class="list" id="list"></ul>
   </div>
  </section>
@@ -212,7 +220,7 @@ label{display:block;font-size:14px;color:var(--mute);margin:10px 0 4px}
   </div>
   <div class="panel">
    <h2>設定</h2>
-   <p class="note">版本 v4</p>
+   <p class="note">版本 v5</p>
    <label for="lim">每個牌組每天的新卡上限</label><input type="number" id="lim" min="0" max="999">
    <label>目前牌組</label>
    <div class="row"><input type="text" id="renameIn" aria-label="目前牌組名稱"><button id="renameBtn" style="flex:0 0 auto">改名</button></div>
@@ -258,7 +266,7 @@ normalize(S);
 function save(){try{localStorage.setItem(K,JSON.stringify(S));canStore=true}catch(e){canStore=false}$('#warn').hidden=canStore}
 save();
 
-let view='study',cur=null,showBack=false,undoStack=[],timer=null,drill=null;
+let view='study',cur=null,showBack=false,undoStack=[],timer=null,drill=null,onlyHard=false;
 const toast=t=>{const e=$('#toast');e.textContent=t;e.classList.add('on');clearTimeout(e._t);e._t=setTimeout(()=>e.classList.remove('on'),1800)};
 const deckCards=()=>S.cards.filter(c=>c.deck===S.cur);
 function todayN(){if(S.today.day!==dayKey())S.today={day:dayKey(),n:{}};return S.today.n[S.cur]||0}
@@ -318,24 +326,45 @@ function renderDecks(){
  const cnt={};for(const c of S.cards)cnt[c.deck]=(cnt[c.deck]||0)+1;
  $('#deckList').innerHTML=S.decks.map(d=>`<li><div class="t"><b>${esc(d.name)}</b><span>${cnt[d.id]||0} 張${d.id===S.cur?' · 目前牌組':''}</span></div><button class="danger" data-deldeck="${esc(d.id)}">刪除</button></li>`).join('');
 }
+// 困難卡判斷：忘記 ≥2 次、ease ≤ 2.0，或最近 3 次有 2 次按「忘了」
+function hardInfo(c){
+ const ss=[c,c.r].filter(x=>x&&x.reps>0),lapses=(c.lapses||0)+((c.r&&c.r.lapses)||0);
+ const ease=ss.length?Math.min(...ss.map(x=>x.ease||2.5)):2.5,again=(c.h||[]).slice(-3).filter(q=>q===1).length;
+ const why=lapses?`忘記 ${lapses} 次`:again>=2?'最近常按「忘了」':'難度偏高';
+ return {hard:lapses>=2||ease<=2.0||again>=2,lapses,why,score:lapses*3+Math.max(0,2.5-ease)*10+again*2};
+}
+const hardCards=()=>deckCards().map(c=>({c,...hardInfo(c)})).filter(x=>x.hard).sort((a,b)=>b.score-a.score);
+const drillDir=()=>deckOf(S.cur).dir==='r'?'r':'f';
+const realDue=it=>it.s.st!=='new'&&it.s.due<rollover();
 function renderStudy(){
  clearTimeout(timer);
- const Q=queue();
- $('#stats').innerHTML=`<span><b>${Q.nw.length}</b>新卡</span><span><b>${Q.lrnAll.length}</b>學習中</span><span><b>${Q.rev.length}</b>待複習</span>`;
  const g=$('#stage');
  $('#undo').disabled=!undoStack.length;
- cur=Q.next;$('#editCur').hidden=!cur;
- if(!cur){
-  if(Q.wait){const ms=Q.wait.due-Date.now();g.innerHTML=`<div class="card done"><b>稍等一下</b><p class="note">下一張學習中的卡片約 ${esc(fmt(ms))}後出現。</p></div>`;timer=setTimeout(renderStudy,Math.min(Math.max(ms,1e3),3e4));return}
-  const total=deckCards().length;
-  g.innerHTML=`<div class="card done"><b>${total?'今天完成了':'這個牌組還沒有卡片'}</b><p class="note">${total?'明天再來。想多學可以到「匯入／備份」調高新卡上限。':'到「卡片」新增，或從「匯入／備份」貼上一整批。'}</p></div>`;return;
+ if(drill&&drill.deck!==S.cur)drill=null;
+ if(drill){
+  drill.q=drill.q.filter(id=>S.cards.some(c=>c.id===id));
+  $('#stats').innerHTML=`<div class="drillbar"><span>集中練習困難卡：剩 <b>${drill.q.length}</b> 張</span><button class="ghost" id="drillEnd">結束練習</button></div>`;
+  if(!drill.q.length){cur=null;$('#editCur').hidden=true;
+   g.innerHTML=`<div class="card done"><b>困難卡練習完成</b><p class="note">這一輪共練習 ${drill.total} 張。只有今天本來就到期的卡會更新複習進度。</p><button class="pri" id="drillEnd2">回到一般複習</button></div>`;return}
+  const c=S.cards.find(c=>c.id===drill.q[0]),dir=drillDir();cur={c,dir,s:stOf(c,dir)};
+ }else{
+  const Q=queue();
+  $('#stats').innerHTML=`<span><b>${Q.nw.length}</b>新卡</span><span><b>${Q.lrnAll.length}</b>學習中</span><span><b>${Q.rev.length}</b>待複習</span>`;
+  cur=Q.next;
+  if(!cur){$('#editCur').hidden=true;
+   if(Q.wait){const ms=Q.wait.s.due-Date.now();g.innerHTML=`<div class="card done"><b>稍等一下</b><p class="note">下一張學習中的卡片約 ${esc(fmt(ms))}後出現。</p></div>`;timer=setTimeout(renderStudy,Math.min(Math.max(ms,1e3),3e4));return}
+   const total=deckCards().length;
+   g.innerHTML=`<div class="card done"><b>${total?'今天完成了':'這個牌組還沒有卡片'}</b><p class="note">${total?'明天再來。想多學可以到「匯入／備份」調高新卡上限。':'到「卡片」新增，或從「匯入／備份」貼上一整批。'}</p></div>`;return;
+  }
  }
- const rv=cur.dir==='r',c=cur.c;
- const tag=(cur.s.st==='new'?'新卡':cur.s.st==='lrn'?'學習中':'複習')+(rv?' · 反向':'');
+ $('#editCur').hidden=false;
+ const rv=cur.dir==='r',c=cur.c,real=!drill||realDue(cur);
+ const tag=(drill?'困難卡練習':cur.s.st==='new'?'新卡':cur.s.st==='lrn'?'學習中':'複習')+(rv?' · 反向':'');
+ const sub=i=>real?fmt(sched(cur.s,i).due-Date.now()):i===1?'等一下再出現':'本輪完成';
  g.innerHTML=`<div class="card" id="theCard"><span class="tag">${tag}</span>${rv&&!showBack?'':'<button class="say" id="say" aria-label="唸英文">🔊 發音</button>'}
   <div class="front${rv?' rv':''}">${esc(rv?c.b:c.f)}</div>
   ${showBack?`<div class="back">${rv?`<div class="m en">${esc(c.f)}</div>`:`<div class="m">${esc(c.b)}</div>`}${c.ex?`<div class="ex">${esc(c.ex)}</div>`:''}</div>`:`<p class="hint">點卡片或按空白鍵翻面</p>`}</div>
-  ${showBack?`<div class="grades">${['忘了','困難','記得','簡單'].map((l,i)=>{const x=sched(cur.s,i+1);return `<button class="g${i+1}" data-q="${i+1}">${l}<small>${esc(fmt(x.due-Date.now()))}</small></button>`}).join('')}</div>`:`<div class="grades" style="grid-template-columns:1fr"><button class="pri" id="flip">顯示答案</button></div>`}`;
+  ${showBack?`<div class="grades">${['忘了','困難','記得','簡單'].map((l,i)=>`<button class="g${i+1}" data-q="${i+1}">${l}<small>${esc(sub(i+1))}</small></button>`).join('')}</div>`:`<div class="grades" style="grid-template-columns:1fr"><button class="pri" id="flip">顯示答案</button></div>`}`;
 }
 // 每日複習紀錄，只留最近 365 天
 function logGrade(isNew,q){
@@ -346,24 +375,34 @@ function logGrade(isNew,q){
 function grade(q){
  if(!cur||!showBack)return;
  const c=S.cards.find(x=>x.id===cur.c.id);if(!c)return;
- const lk=isoDay();
- undoStack.push({card:JSON.parse(JSON.stringify(c)),today:JSON.parse(JSON.stringify(S.today)),lk,lp:S.log[lk]?{...S.log[lk]}:null});if(undoStack.length>30)undoStack.shift();
- logGrade(cur.s.st==='new',q);
- if(cur.s.st==='new'){todayN();S.today.n[S.cur]=(S.today.n[S.cur]||0)+1}
- const x=pick(sched(cur.s,q));
- if(cur.dir==='r')c.r=x;else Object.assign(c,x);
- c.lr={...(c.lr||{}),[cur.dir]:isoDay()};
+ const lk=isoDay(),real=!drill||realDue(cur);
+ undoStack.push({card:JSON.parse(JSON.stringify(c)),today:JSON.parse(JSON.stringify(S.today)),lk,lp:S.log[lk]?{...S.log[lk]}:null,drill:drill?{...drill,q:[...drill.q]}:null});if(undoStack.length>30)undoStack.shift();
+ // 集中練習時，只有今天本來就到期的卡才更新正式排程
+ if(real){
+  logGrade(cur.s.st==='new',q);
+  if(cur.s.st==='new'){todayN();S.today.n[S.cur]=(S.today.n[S.cur]||0)+1}
+  const x=pick(sched(cur.s,q));
+  if(cur.dir==='r')c.r=x;else Object.assign(c,x);
+  c.lr={...(c.lr||{}),[cur.dir]:isoDay()};
+  c.h=[...(c.h||[]),q].slice(-5);
+ }
+ if(drill){const id=drill.q.shift();if(q===1)drill.q.push(id)}
  showBack=false;save();renderStudy();
 }
 function speak(t){try{const u=new SpeechSynthesisUtterance(t);u.lang='en-US';u.rate=.95;speechSynthesis.cancel();speechSynthesis.speak(u)}catch(e){toast('這個瀏覽器不支援發音')}}
 
 function renderCards(){
  const q=$('#q').value.trim().toLowerCase(),n=Date.now();
- const cs=deckCards().filter(c=>!q||(c.f+' '+c.b).toLowerCase().includes(q)).sort((a,b)=>b.c-a.c);
- $('#cnt').textContent=`共 ${deckCards().length} 張${q?`，符合 ${cs.length} 張`:''}`;
+ const hs=hardCards(),hm=new Map(hs.map(x=>[x.c.id,x]));
+ $('#fHard').textContent=`困難卡（${hs.length}）`;$('#fAll').setAttribute('aria-pressed',!onlyHard);$('#fHard').setAttribute('aria-pressed',onlyHard);
+ const base=onlyHard?hs.map(x=>x.c):deckCards().sort((a,b)=>b.c-a.c);
+ const cs=base.filter(c=>!q||(c.f+' '+c.b).toLowerCase().includes(q));
+ $('#cnt').textContent=onlyHard?`困難卡 ${hs.length} 張，越上面越常忘記${q?`，符合 ${cs.length} 張`:''}`:`共 ${deckCards().length} 張${q?`，符合 ${cs.length} 張`:''}`;
+ $('#hardBox').hidden=!onlyHard||!hs.length;$('#drillBtn').textContent=`集中練習困難卡（${hs.length} 張）`;
  const ds=dirsOf(S.cur),lab=x=>x.st==='new'?'新卡':x.due<=n?'現在要複習':`下次 ${fmt(x.due-n)}後`;
  $('#list').innerHTML=cs.map(c=>{const s=ds.length>1?`正：${lab(c)} · 反：${lab(stOf(c,'r'))}`:ds[0]==='r'?`反向：${lab(stOf(c,'r'))}`:lab(c);
-  return `<li><div class="t"><b>${esc(c.f)}</b><span>${esc(c.b)} · ${esc(s)}</span></div><button data-ed="${esc(c.id)}">編輯</button><button data-del="${esc(c.id)}" class="danger">刪除</button></li>`}).join('')||'<li class="note">沒有卡片</li>';
+  const h=hm.get(c.id);
+  return `<li><div class="t"><b>${esc(c.f)}</b><span>${esc(c.b)} · ${esc(s)}${h?` · <em class="hard">${esc(h.why)}</em>`:''}</span></div><button data-ed="${esc(c.id)}">編輯</button><button data-del="${esc(c.id)}" class="danger">刪除</button></li>`}).join('')||`<li class="note">${onlyHard?'目前沒有困難卡，很棒！':'沒有卡片'}</li>`;
 }
 function editCard(id){
  const c=S.cards.find(c=>c.id===id);if(!c)return;
@@ -417,10 +456,11 @@ function renderStat(){
 
 document.querySelector('nav').addEventListener('click',e=>{const b=e.target.closest('button');if(b)setView(b.dataset.v)});
 $('#dirSel').addEventListener('change',e=>{const d=deckOf(S.cur);if(!d.id)return;d.dir=e.target.value;showBack=false;save();render();toast('已更新練習方向')});
-$('#deck').addEventListener('change',e=>{S.cur=e.target.value;showBack=false;undoStack=[];save();resetForm();render()});
+$('#deck').addEventListener('change',e=>{S.cur=e.target.value;drill=null;showBack=false;undoStack=[];save();resetForm();render()});
 $('#newDeckBtn').addEventListener('click',()=>{$('#newDeckRow').hidden=!$('#newDeckRow').hidden;$('#newDeckName').focus()});
 $('#newDeckOk').addEventListener('click',()=>{const n=$('#newDeckName').value.trim();if(!n)return;const id=uid();S.decks.push({id,name:n});S.cur=id;$('#newDeckName').value='';$('#newDeckRow').hidden=true;save();render();toast('已建立牌組')});
 $('#stage').addEventListener('click',e=>{
+ if(e.target.closest('#drillEnd2')){drill=null;showBack=false;renderStudy();return}
  if(e.target.closest('#say')){e.stopPropagation();cur&&speak(cur.c.f);return}
  const g=e.target.closest('[data-q]');if(g){grade(+g.dataset.q);return}
  if(e.target.closest('#flip')||e.target.closest('#theCard')){if(cur&&!showBack){showBack=true;renderStudy()}}
@@ -432,7 +472,8 @@ document.addEventListener('keydown',e=>{
  else if(e.key==='z'||e.key==='u')$('#undo').click();
 });
 $('#undo').addEventListener('click',()=>{const u=undoStack.pop();if(!u)return;const i=S.cards.findIndex(c=>c.id===u.card.id);if(i>-1)S.cards[i]=u.card;S.today=u.today;
- if(u.lk){if(u.lp)S.log[u.lk]=u.lp;else delete S.log[u.lk]}showBack=false;save();renderStudy();toast('已復原')});
+ if(u.lk){if(u.lp)S.log[u.lk]=u.lp;else delete S.log[u.lk]}
+ if(u.drill)drill=u.drill;showBack=false;save();renderStudy();toast('已復原')});
 $('#editCur').addEventListener('click',()=>cur&&editCard(cur.c.id));
 $('#form').addEventListener('submit',e=>{e.preventDefault();
  const f=$('#ff').value.trim(),b=$('#fb').value.trim(),ex=$('#fe').value.trim(),id=$('#fid').value;if(!f||!b)return;
@@ -441,6 +482,11 @@ $('#form').addEventListener('submit',e=>{e.preventDefault();
  save();renderCards();
 });
 $('#fcancel').addEventListener('click',resetForm);
+$('#fAll').addEventListener('click',()=>{onlyHard=false;renderCards()});
+$('#fHard').addEventListener('click',()=>{onlyHard=true;renderCards()});
+$('#drillBtn').addEventListener('click',()=>{const hs=hardCards();if(!hs.length)return;
+ drill={deck:S.cur,q:hs.map(x=>x.c.id),total:hs.length};showBack=false;setView('study')});
+$('#stats').addEventListener('click',e=>{if(e.target.closest('#drillEnd')){drill=null;showBack=false;renderStudy();toast('已結束困難卡練習')}});
 $('#q').addEventListener('input',renderCards);
 $('#list').addEventListener('click',e=>{
  const ed=e.target.closest('[data-ed]');if(ed){editCard(ed.dataset.ed);return}
