@@ -53,6 +53,7 @@ nav button[aria-selected=true]{background:var(--panel);color:var(--ink);opacity:
 .grades{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-top:14px}
 .grades button{color:#fff;display:flex;flex-direction:column;justify-content:center;line-height:1.2;padding:8px 4px;min-height:58px}
 .grades small{font-size:13px;opacity:.9;font-weight:400}
+.grades .pri{color:#1a1a1a}
 .g1{background:#d93a3a}.g2{background:#b86f00}.g3{background:#17894a}.g4{background:#1f5fe0}
 .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 .row>*{flex:1 1 auto}
@@ -79,6 +80,13 @@ label{display:block;font-size:14px;color:var(--mute);margin:10px 0 4px}
 .grp{display:flex;gap:8px;align-items:center;margin-top:8px}
 .grp input{flex:1}
 .grp small{flex:0 0 auto;color:var(--mute);font-size:14px;min-width:4em;text-align:right}
+.bak{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between}
+.bak .row{flex:0 0 auto}
+.bak button{min-height:40px;background:#1a1a1a;color:#fff;padding:0 12px}
+.bak button+button{background:transparent;color:#1a1a1a;border:1px solid rgba(0,0,0,.4)}
+.sub{font-size:15px;margin:18px 0 8px;color:var(--mute);font-weight:500}
+.panel button:not(.pri):not(.danger){background:light-dark(#eef2fc,#24306a)}
+.panel .list button:not(.pri){background:transparent}
 .toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:#141a2e;color:#fff;padding:10px 16px;border-radius:10px;font-size:14px;opacity:0;transition:opacity .2s;pointer-events:none}
 .toast.on{opacity:1}
 [hidden]{display:none!important}
@@ -100,6 +108,7 @@ label{display:block;font-size:14px;color:var(--mute);margin:10px 0 4px}
   <button role="tab" data-v="cards" aria-selected="false">卡片</button>
   <button role="tab" data-v="io" aria-selected="false">匯入／備份</button>
  </nav>
+ <div id="bakWarn" class="warn bak" hidden><span id="bakText"></span><span class="row"><button id="bakGo">去備份</button><button id="bakLater">稍後</button></span></div>
  <div id="warn" class="warn" hidden>這個瀏覽器無法儲存資料，關掉頁面卡片就會消失。請到「匯入／備份」複製備份。</div>
 
  <section id="study">
@@ -143,9 +152,13 @@ label{display:block;font-size:14px;color:var(--mute);margin:10px 0 4px}
     <div class="row" style="margin-top:12px"><button class="pri" id="apkgOk">匯入</button><button id="apkgCancel" style="flex:0 0 auto">取消</button></div>
    </div>
   </div>
-  <div class="panel">
+  <div class="panel" id="bakPanel">
    <h2>備份</h2>
-   <p class="note">卡片只存在這支手機的瀏覽器裡。清除 Safari 資料或換手機就會不見，建議每週複製一次備份，貼到備忘錄或寄給自己。</p>
+   <p class="note">卡片只存在這支手機的瀏覽器裡。清除 Safari 資料或換手機就會不見，建議每週備份一次。<span id="bakLast"></span></p>
+   <div class="row"><button class="pri" id="bakFile">下載備份檔</button><button id="bakRestoreBtn">從檔案還原</button></div>
+   <input type="file" id="bakRestoreFile" accept=".json,application/json,text/plain" hidden>
+   <div id="bakRestoreBox" hidden style="margin-top:10px"><p class="note" id="bakRestoreInfo"></p><div class="row"><button class="danger" id="bakRestoreOk">確認還原（覆蓋全部資料）</button><button id="bakRestoreCancel" style="flex:0 0 auto">取消</button></div></div>
+   <h3 class="sub">用文字備份</h3>
    <div class="row"><button id="expCsv">複製目前牌組 CSV</button><button id="expJson">複製完整備份</button></div>
    <textarea id="expOut" readonly placeholder="複製的內容也會顯示在這裡，可以手動全選。" style="margin-top:10px"></textarea>
    <label for="restore">還原備份（會覆蓋全部資料）</label>
@@ -185,11 +198,23 @@ function seed(){
 }
 let S,canStore=true;
 try{S=JSON.parse(localStorage.getItem(K))}catch(e){canStore=false}
-if(!S||!S.decks||!S.decks.length)S=seed();
+if(!S||!Array.isArray(S.decks)||!S.decks.length||!Array.isArray(S.cards))S=seed();
+// 舊資料沒有的欄位在這裡補預設值，不改動既有資料
+function normalize(d){
+ d.today=d.today&&typeof d.today==='object'?d.today:{day:dayKey(),n:{}};d.today.n=d.today.n||{};
+ d.lim=Number.isFinite(+d.lim)?+d.lim:20;
+ d.log=d.log&&typeof d.log==='object'?d.log:{};
+ d.meta=d.meta&&typeof d.meta==='object'?d.meta:{};
+ for(const k of d.decks)k.dir=['f','r','b'].includes(k.dir)?k.dir:'f';
+ for(const c of d.cards){c.ex=c.ex||'';c.st=c.st||'new';c.step=c.step||0;c.ivl=c.ivl||0;c.ease=c.ease||2.5;c.reps=c.reps||0;c.lapses=c.lapses||0;c.due=c.due||0;c.c=c.c||0}
+ if(!d.decks.some(x=>x.id===d.cur))d.cur=d.decks[0].id;
+ return d;
+}
+normalize(S);
 function save(){try{localStorage.setItem(K,JSON.stringify(S));canStore=true}catch(e){canStore=false}$('#warn').hidden=canStore}
 save();
 
-let view='study',cur=null,showBack=false,undoStack=[],timer=null;
+let view='study',cur=null,showBack=false,undoStack=[],timer=null,drill=null;
 const toast=t=>{const e=$('#toast');e.textContent=t;e.classList.add('on');clearTimeout(e._t);e._t=setTimeout(()=>e.classList.remove('on'),1800)};
 const deckCards=()=>S.cards.filter(c=>c.deck===S.cur);
 function todayN(){if(S.today.day!==dayKey())S.today={day:dayKey(),n:{}};return S.today.n[S.cur]||0}
@@ -290,7 +315,7 @@ function armed(btn,label,fn){if(btn.dataset.arm){fn();delete btn.dataset.arm;btn
 
 function setView(v){view=v;for(const b of document.querySelectorAll('nav button'))b.setAttribute('aria-selected',b.dataset.v===v);
  for(const s of ['study','cards','io'])$('#'+s).hidden=s!==v;render()}
-function render(){renderDecks();$('#warn').hidden=canStore;if(view==='study')renderStudy();else if(view==='cards')renderCards()}
+function render(){renderDecks();renderBackup();$('#warn').hidden=canStore;if(view==='study')renderStudy();else if(view==='cards')renderCards()}
 
 document.querySelector('nav').addEventListener('click',e=>{const b=e.target.closest('button');if(b)setView(b.dataset.v)});
 $('#deck').addEventListener('change',e=>{S.cur=e.target.value;showBack=false;undoStack=[];save();resetForm();render()});
@@ -404,12 +429,51 @@ $('#impBtn').addEventListener('click',()=>{
  save();$('#imp').value='';$('#impFile').value='';impMsg(`匯入 ${n} 張${skip?`，略過重複 ${skip} 張`:''}`);
 });
 $('#expCsv').addEventListener('click',()=>copyOut(deckCards().map(c=>[c.f,c.b,c.ex].map(csvCell).join(',')).join('\n')));
-$('#expJson').addEventListener('click',()=>copyOut(JSON.stringify(S)));
+const backupText=()=>JSON.stringify({...S,meta:{...S.meta,exportedAt:Date.now()}});
+const markBackup=()=>{S.meta.lastBackup=Date.now();delete S.meta.snooze;save();renderBackup()};
+$('#expJson').addEventListener('click',async()=>{await copyOut(backupText());markBackup()});
+function parseBackup(t){
+ let d;try{d=JSON.parse(String(t).trim())}catch(err){return null}
+ return d&&Array.isArray(d.decks)&&Array.isArray(d.cards)&&d.decks.length&&d.decks.every(x=>x&&x.id)?d:null;
+}
+function applyRestore(d){S=normalize(d);S.meta.lastBackup=Date.now();delete S.meta.snooze;undoStack=[];showBack=false;drill=null;save();resetForm();render()}
 $('#restoreBtn').addEventListener('click',e=>{
- let d;try{d=JSON.parse($('#restore').value)}catch(err){toast('備份格式不正確');return}
- if(!d||!Array.isArray(d.decks)||!Array.isArray(d.cards)||!d.decks.length){toast('備份格式不正確');return}
- armed(e.currentTarget,'還原',()=>{S=d;S.today=S.today||{day:dayKey(),n:{}};S.lim=S.lim??20;if(!S.decks.some(x=>x.id===S.cur))S.cur=S.decks[0].id;undoStack=[];save();$('#restore').value='';render();toast('已還原')});
+ const d=parseBackup($('#restore').value);if(!d){toast('備份格式不正確');return}
+ armed(e.currentTarget,'還原',()=>{applyRestore(d);$('#restore').value='';toast('已還原')});
 });
+const isoDay=(ms=Date.now())=>{const d=new Date(ms-4*36e5);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};
+const fmtDate=ms=>{const d=new Date(ms);return `${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()}`};
+$('#bakFile').addEventListener('click',async()=>{
+ const name=`flashcards-backup-${isoDay()}.json`,text=backupText();
+ const file=new File([text],name,{type:'application/json'});
+ if(matchMedia('(pointer:coarse)').matches&&navigator.canShare&&navigator.canShare({files:[file]})){
+  try{await navigator.share({files:[file],title:name});markBackup();toast('已分享備份檔')}
+  catch(err){if(err&&err.name==='AbortError')toast('已取消');else toast('分享失敗：'+(err&&err.message||err))}
+  return}
+ const a=document.createElement('a');a.href=URL.createObjectURL(file);a.download=name;document.body.appendChild(a);a.click();
+ setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1000);markBackup();toast('已下載備份檔');
+});
+let pendingRestore=null;
+$('#bakRestoreBtn').addEventListener('click',()=>$('#bakRestoreFile').click());
+$('#bakRestoreFile').addEventListener('change',e=>{const f=e.target.files[0];if(!f)return;
+ const r=new FileReader();r.onerror=()=>toast('檔案讀取失敗');
+ r.onload=()=>{const d=parseBackup(r.result);e.target.value='';
+  if(!d){pendingRestore=null;$('#bakRestoreBox').hidden=false;$('#bakRestoreInfo').textContent=`「${f.name}」不是這個 App 的備份檔`;$('#bakRestoreOk').hidden=true;return}
+  pendingRestore=d;$('#bakRestoreOk').hidden=false;$('#bakRestoreBox').hidden=false;
+  const at=d.meta&&d.meta.exportedAt?`，備份時間 ${fmtDate(d.meta.exportedAt)}`:'';
+  $('#bakRestoreInfo').textContent=`「${f.name}」裡有 ${d.decks.length} 個牌組、${d.cards.length} 張卡${at}。還原會覆蓋目前全部的 ${S.decks.length} 個牌組、${S.cards.length} 張卡。`};
+ r.readAsText(f)});
+$('#bakRestoreOk').addEventListener('click',e=>{if(!pendingRestore)return;armed(e.currentTarget,'確認還原（覆蓋全部資料）',()=>{applyRestore(pendingRestore);pendingRestore=null;$('#bakRestoreBox').hidden=true;toast('已還原')})});
+$('#bakRestoreCancel').addEventListener('click',()=>{pendingRestore=null;$('#bakRestoreBox').hidden=true});
+function renderBackup(){
+ const m=S.meta,n=Date.now(),last=m.lastBackup;
+ $('#bakLast').textContent=last?` 上次備份：${fmtDate(last)}。`:' 還沒備份過。';
+ const need=!(m.snooze>n)&&(last?n-last>7*D:S.cards.length>20);
+ $('#bakWarn').hidden=!need;
+ if(need)$('#bakText').textContent=last?`已經 ${Math.floor((n-last)/D)} 天沒備份了`:`你有 ${S.cards.length} 張卡，還沒備份過`;
+}
+$('#bakGo').addEventListener('click',()=>{setView('io');$('#bakPanel').scrollIntoView({behavior:'smooth'})});
+$('#bakLater').addEventListener('click',()=>{S.meta.snooze=Date.now()+3*D;save();renderBackup()});
 $('#lim').addEventListener('change',e=>{S.lim=Math.max(0,Math.min(999,parseInt(e.target.value)||0));save();toast('已更新')});
 $('#renameBtn').addEventListener('click',()=>{const n=$('#renameIn').value.trim(),d=S.decks.find(d=>d.id===S.cur);if(n&&d){d.name=n;save();render();toast('已改名')}});
 $('#deckList').addEventListener('click',e=>{
