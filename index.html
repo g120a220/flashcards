@@ -114,6 +114,45 @@ label{display:block;font-size:14px;color:var(--mute);margin:10px 0 4px}
 .drillbar{display:flex;gap:10px;justify-content:center;align-items:center;color:var(--on);margin:4px 0 12px;font-size:15px}
 .drillbar button{min-height:36px;padding:0 12px}
 .list .hard{color:var(--red);font-weight:500;font-style:normal}
+textarea.sm{min-height:64px}
+.fmt{margin:4px 0;padding-left:20px}
+.front.mid{font-size:30px;line-height:1.25}
+.front.long{font:500 22px/1.45 "Noto Sans TC",system-ui,sans-serif}
+.kz{font:500 21px/1.5 "Noto Sans TC",sans-serif;text-align:center;margin:22px 0 14px;overflow-wrap:anywhere}
+.ken{font:500 21px/1.55 "Space Grotesk","Noto Sans TC",sans-serif;text-align:center;overflow-wrap:anywhere}
+.kz.long,.ken.long{font-size:19px}
+.blank{letter-spacing:.04em;color:var(--mute);white-space:nowrap}
+mark{background:var(--hi);color:#1a1a1a;padding:0 3px;border-radius:3px;box-decoration-break:clone;-webkit-box-decoration-break:clone}
+.back .ken{margin-bottom:12px}
+.nt{text-align:left;font-size:16px;background:light-dark(#f4f7ff,#202c5c);border-radius:8px;padding:10px 12px;margin-top:8px}
+.td{text-align:left;margin-top:10px;border:1px solid var(--line);border-radius:8px;padding:0 12px}
+.td summary{min-height:44px;display:flex;align-items:center;cursor:pointer;color:var(--mute);font-size:15px}
+.td div{white-space:pre-wrap;font-size:15px;padding-bottom:12px}
+.warnchunk{text-align:center;color:var(--red);font-size:14px}
+.studybar{display:flex;gap:8px;margin-bottom:10px}
+.studybar select{flex:1;width:auto;min-width:0}
+.studybar button{flex:0 0 auto}
+.roundbar{display:flex;gap:14px;align-items:center;justify-content:center;background:rgba(0,0,0,.22);color:var(--on);border-radius:12px;padding:6px 10px;margin-bottom:10px;font-size:15px}
+.roundbar b{font:700 20px "Space Grotesk",sans-serif;font-variant-numeric:tabular-nums}
+.roundbar button{min-height:36px;padding:0 12px}
+.pausenote{text-align:center;color:var(--on);opacity:.9;font-size:13px;margin:-6px 0 10px}
+.mini{margin-top:18px;background:rgba(0,0,0,.18);border-radius:12px;padding:12px 14px;color:var(--on)}
+.mini .top{display:flex;justify-content:space-between;font-size:14px}
+.mini .top b{font:700 18px "Space Grotesk",sans-serif;margin:0 3px}
+.mini .b7{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;align-items:end;height:56px;margin-top:10px}
+.mini .b7 div{display:flex;flex-direction:column;justify-content:flex-end;align-items:center;height:100%;font-size:11px;gap:2px}
+.mini .b7 i{display:block;width:100%;background:rgba(255,255,255,.75);border-radius:3px 3px 0 0;min-height:2px}
+.mini .b7 div.t i{background:var(--hi)}
+.mini .b7 span{opacity:.85}
+.backtools{display:flex;justify-content:flex-end;margin-top:12px}
+.flag{background:transparent;color:var(--mute);border:1px solid var(--line);font-size:14px;padding:0 12px}
+.flag[aria-pressed=true]{background:light-dark(#fde8e6,#4a2230);color:var(--red);border-color:var(--red)}
+.tp{color:var(--mute);font-size:12px;border:1px solid var(--line);border-radius:999px;padding:0 6px;font-weight:400}
+.sheet{position:fixed;inset:0;background:rgba(5,10,30,.55);display:flex;align-items:center;justify-content:center;padding:20px;z-index:10}
+.sheetIn{background:var(--panel);color:var(--ink);border-radius:16px;padding:22px;max-width:360px;width:100%;text-align:center;box-shadow:0 20px 40px rgba(0,0,0,.35)}
+.sheetIn b{display:block;font:700 22px "Space Grotesk","Noto Sans TC",sans-serif;margin-bottom:6px}
+.sheetIn .row{margin-top:14px}
+.sheetIn button:not(.pri){background:var(--track)}
 .toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:#141a2e;color:#fff;padding:10px 16px;border-radius:10px;font-size:14px;opacity:0;transition:opacity .2s;pointer-events:none}
 .toast.on{opacity:1}
 [hidden]{display:none!important}
@@ -140,27 +179,43 @@ label{display:block;font-size:14px;color:var(--mute);margin:10px 0 4px}
  <div id="warn" class="warn" hidden>這個瀏覽器無法儲存資料，關掉頁面卡片就會消失。請到「匯入／備份」複製備份。</div>
 
  <section id="study">
+  <div class="studybar"><select id="topicSel" aria-label="主題篩選"></select><button class="ghost" id="roundBtn">⏱ 開始一輪</button></div>
+  <div class="roundbar" id="roundBar" hidden><span>⏱ 剩 <b id="roundLeft">10:00</b></span><span>這輪 <b id="roundN">0</b> 張</span><button class="ghost" id="roundStop">結束</button></div>
   <div class="stats" id="stats"></div>
+  <p class="pausenote" id="pauseNote" hidden></p>
   <div id="stage"></div>
   <div class="under"><button id="undo" disabled>↶ 復原</button><button id="editCur">編輯這張</button></div>
+  <div class="mini" id="mini"></div>
  </section>
 
  <section id="cards" hidden>
   <div class="panel">
    <h2 id="formTitle">新增卡片</h2>
-   <form id="form">
+   <form id="form" novalidate>
     <input type="hidden" id="fid">
-    <label for="ff">正面（單字）</label><input type="text" id="ff" required autocomplete="off" autocapitalize="off">
-    <label for="fb">背面（意思）</label><input type="text" id="fb" required autocomplete="off">
+    <div class="chips" role="group" aria-label="卡片類型"><button type="button" id="tW" aria-pressed="true">單字卡</button><button type="button" id="tK" aria-pressed="false">chunk 卡</button></div>
+    <div id="fW">
+    <label for="ff">正面（單字）</label><input type="text" id="ff" autocomplete="off" autocapitalize="off">
+    <label for="fb">背面（意思）</label><input type="text" id="fb" autocomplete="off">
     <label for="fe">例句（選填）</label><input type="text" id="fe" autocomplete="off" autocapitalize="off">
+    </div>
+    <div id="fK" hidden>
+    <label for="kz">中文整句</label><textarea id="kz" class="sm" autocomplete="off"></textarea>
+    <label for="ke">英文整句</label><textarea id="ke" class="sm" autocomplete="off" autocapitalize="off"></textarea>
+    <label for="kc">chunk（要挖空的部分，必須出現在英文整句裡；不連續的用 ... 隔開）</label><input type="text" id="kc" autocomplete="off" autocapitalize="off">
+    <label for="kn">說明（選填）</label><textarea id="kn" class="sm" autocomplete="off"></textarea>
+    <label for="kt">主題（選填）</label><input type="text" id="kt" autocomplete="off" list="topicList"><datalist id="topicList"></datalist>
+    <label for="kd">主題詳解（選填）</label><textarea id="kd" class="sm" autocomplete="off"></textarea>
+    </div>
     <div class="row" style="margin-top:14px"><button class="pri" type="submit" id="fsave">加入</button><button type="button" id="fcancel" hidden>取消編輯</button></div>
    </form>
   </div>
   <div class="panel">
-   <div class="chips" role="group" aria-label="篩選"><button id="fAll" aria-pressed="true">全部</button><button id="fHard" aria-pressed="false">困難卡</button></div>
+   <div class="chips" role="group" aria-label="篩選"><button id="fAll" aria-pressed="true">全部</button><button id="fHard" aria-pressed="false">困難卡</button><button id="fFlag" aria-pressed="false">🚩 標記</button></div>
    <input type="search" id="q" placeholder="搜尋單字或意思">
    <p class="note" id="cnt"></p>
    <div id="hardBox" hidden><p class="note">困難卡：忘記 2 次以上、難度係數偏低（ease ≤ 2.0），或最近 3 次有 2 次按「忘了」。</p><button class="pri" id="drillBtn" style="width:100%">集中練習困難卡</button></div>
+   <div id="flagBox" hidden><button class="pri" id="flagCopy" style="width:100%">複製標記清單</button><textarea id="flagOut" readonly hidden style="margin-top:8px"></textarea></div>
    <ul class="list" id="list"></ul>
   </div>
  </section>
@@ -187,8 +242,10 @@ label{display:block;font-size:14px;color:var(--mute);margin:10px 0 4px}
  <section id="io" hidden>
   <div class="panel">
    <h2>匯入</h2>
-   <p class="note">貼上文字會匯入到目前牌組，一行一張：<code>單字,意思,例句</code>。從 Excel 或 Google 試算表直接複製貼上（Tab 分隔）也可以。<br>也能選 Anki 的 <code>.apkg</code> 檔，會取每張筆記的前三個欄位，並可自動建立同名牌組。</p>
-   <textarea id="imp" placeholder="ubiquitous,無所不在的,Smartphones are ubiquitous."></textarea>
+   <p class="note">貼上文字會依照原本的順序匯入到目前牌組，一行一張，用 Tab 分隔（從 Excel 或 Google 試算表直接複製貼上就是 Tab）：</p>
+   <ul class="note fmt"><li><b>單字卡</b>（2–3 欄）：單字　意思　例句</li><li><b>chunk 卡</b>（6 欄）：中文整句　英文整句　chunk　說明　主題　主題詳解</li></ul>
+   <p class="note">也可以用半形逗號分隔，內容有逗號的欄位要用雙引號括起來。中文的全形逗號「，」不會被當成分隔。<br>也能選 Anki 的 <code>.apkg</code> 檔，會取每張筆記的前三個欄位，並可自動建立同名牌組。</p>
+   <textarea id="imp" placeholder="ubiquitous	無所不在的	Smartphones are ubiquitous."></textarea>
    <div class="row" style="margin-top:10px"><input type="file" id="impFile"><button class="pri" id="impBtn" style="flex:0 0 auto">匯入</button></div>
    <p class="note" id="impMsg" role="status" aria-live="polite"></p>
    <div id="apkgBox" hidden>
@@ -208,7 +265,7 @@ label{display:block;font-size:14px;color:var(--mute);margin:10px 0 4px}
    <input type="file" id="bakRestoreFile" accept=".json,application/json,text/plain" hidden>
    <div id="bakRestoreBox" hidden style="margin-top:10px"><p class="note" id="bakRestoreInfo"></p><div class="row"><button class="danger" id="bakRestoreOk">確認還原（覆蓋全部資料）</button><button id="bakRestoreCancel" style="flex:0 0 auto">取消</button></div></div>
    <h3 class="sub">用文字備份</h3>
-   <div class="row"><button id="expCsv">複製目前牌組 CSV</button><button id="expJson">複製完整備份</button></div>
+   <div class="row"><button id="expCsv">複製目前牌組（可再匯入）</button><button id="expJson">複製完整備份</button></div>
    <textarea id="expOut" readonly placeholder="複製的內容也會顯示在這裡，可以手動全選。" style="margin-top:10px"></textarea>
    <label for="restore">還原備份（會覆蓋全部資料）</label>
    <textarea id="restore" placeholder="貼上完整備份"></textarea>
@@ -221,8 +278,12 @@ label{display:block;font-size:14px;color:var(--mute);margin:10px 0 4px}
   </div>
   <div class="panel">
    <h2>設定</h2>
-   <p class="note">版本 v5</p>
+   <p class="note">版本 v6（chunk 卡）</p>
    <label for="lim">每個牌組每天的新卡上限</label><input type="number" id="lim" min="0" max="999">
+   <label for="pauseAt">今天待複習超過幾張時暫停新卡（0 表示不暫停）</label><input type="number" id="pauseAt" min="0" max="9999">
+   <label for="roundMin">「一輪」的時間（分鐘）</label><input type="number" id="roundMin" min="1" max="120">
+   <label class="opt" style="margin-top:12px"><input type="checkbox" id="autoSay"><span>翻面時自動播放英文發音</span></label>
+   <label for="rate">發音語速</label><select id="rate"><option value="0.8">0.8（慢）</option><option value="0.9">0.9</option><option value="1">1.0（正常）</option></select>
    <label>目前牌組</label>
    <div class="row"><input type="text" id="renameIn" aria-label="目前牌組名稱"><button id="renameBtn" style="flex:0 0 auto">改名</button></div>
    <label for="dirSel">目前牌組的練習方向</label>
@@ -231,6 +292,7 @@ label{display:block;font-size:14px;color:var(--mute);margin:10px 0 4px}
   </div>
  </section>
 </div>
+<div class="sheet" id="roundEnd" hidden><div class="sheetIn" role="dialog" aria-modal="true" aria-labelledby="roundEndT"><b id="roundEndT"></b><p class="note" id="roundEndSub"></p><div class="row"><button class="pri" id="roundAgain">再一輪</button><button id="roundClose">結束</button></div></div></div>
 <div class="toast" id="toast"></div>
 
 <script>
@@ -243,6 +305,25 @@ const dayKey=()=>new Date(Date.now()-4*36e5).toDateString();
 const isoDay=(ms=Date.now())=>{const d=new Date(ms-4*36e5);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};
 const rollover=()=>{const d=new Date(Date.now()-4*36e5);d.setHours(0,0,0,0);return d.getTime()+D+4*36e5};
 const mk=(deck,f,b,ex)=>({id:uid(),deck,f,b,ex:ex||'',st:'new',step:0,ivl:0,ease:2.5,reps:0,lapses:0,due:0,c:Date.now()});
+// chunk 卡：t='k'，f=英文整句（判斷重複用）、b=中文整句、ck=chunk、nt=說明、tp=主題、td=主題詳解
+const mkK=(deck,zh,en,ck,nt,tp,td)=>({...mk(deck,en,zh,''),t:'k',ck:ck||'',nt:nt||'',tp:tp||'',td:td||''});
+const isK=c=>c&&c.t==='k';
+const escRe=s=>s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+// 把英文整句切成 [{t:文字, m:是不是 chunk}]；找不到 chunk 回傳 null
+function chunkSegs(c){
+ const en=String(c.f||''),parts=String(c.ck||'').split(/\s*(?:\.\.\.|…)\s*/).map(x=>x.trim()).filter(Boolean);
+ if(!parts.length)return null;
+ const segs=[];let pos=0;
+ for(const p of parts){
+  const re=new RegExp((/^\w/.test(p)?'\\b':'')+escRe(p).replace(/\s+/g,'\\s+')+(/\w$/.test(p)?'\\b':''),'gi');
+  re.lastIndex=pos;const m=re.exec(en);if(!m)return null;
+  segs.push({t:en.slice(pos,m.index)},{t:m[0],m:true});pos=m.index+m[0].length}
+ segs.push({t:en.slice(pos)});return segs;
+}
+const blankHtml=segs=>segs.map(x=>x.m?x.t.trim().split(/\s+/).map(()=>'<span class="blank">___</span>').join(' '):esc(x.t)).join('');
+const markHtml=segs=>segs.map(x=>x.m?`<mark>${esc(x.t)}</mark>`:esc(x.t)).join('');
+const multi=t=>esc(String(t||'').replace(/\\n|<br\s*\/?>/gi,'\n'));
+const sizeCls=t=>{const n=String(t).length;return n<=14?'':n<=30?' mid':' long'};
 
 function seed(){
  const id=uid();
@@ -258,6 +339,8 @@ function normalize(d){
  d.lim=Number.isFinite(+d.lim)?+d.lim:20;
  d.log=d.log&&typeof d.log==='object'?d.log:{};
  d.meta=d.meta&&typeof d.meta==='object'?d.meta:{};
+ const cf=d.cfg&&typeof d.cfg==='object'?d.cfg:{};
+ d.cfg={auto:cf.auto!==false,rate:[0.8,0.9,1].includes(+cf.rate)?+cf.rate:0.9,roundMin:Math.min(120,Math.max(1,+cf.roundMin||10)),pauseAt:Number.isFinite(+cf.pauseAt)&&cf.pauseAt!==''&&cf.pauseAt!=null?Math.max(0,+cf.pauseAt):80};
  for(const k of d.decks)k.dir=['f','r','b'].includes(k.dir)?k.dir:'f';
  for(const c of d.cards){c.ex=c.ex||'';c.st=c.st||'new';c.step=c.step||0;c.ivl=c.ivl||0;c.ease=c.ease||2.5;c.reps=c.reps||0;c.lapses=c.lapses||0;c.due=c.due||0;c.c=c.c||0}
  if(!d.decks.some(x=>x.id===d.cur))d.cur=d.decks[0].id;
@@ -267,7 +350,7 @@ normalize(S);
 function save(){try{localStorage.setItem(K,JSON.stringify(S));canStore=true}catch(e){canStore=false}$('#warn').hidden=canStore}
 save();
 
-let view='study',cur=null,showBack=false,undoStack=[],timer=null,drill=null,onlyHard=false;
+let view='study',cur=null,showBack=false,undoStack=[],timer=null,drill=null,listF='all',round=null,roundT=null;
 const toast=t=>{const e=$('#toast');e.textContent=t;e.classList.add('on');clearTimeout(e._t);e._t=setTimeout(()=>e.classList.remove('on'),1800)};
 const deckCards=()=>S.cards.filter(c=>c.deck===S.cur);
 function todayN(){if(S.today.day!==dayKey())S.today={day:dayKey(),n:{}};return S.today.n[S.cur]||0}
@@ -279,8 +362,9 @@ const pick=x=>{const o={};for(const k of SK)o[k]=x[k];return o};
 const stOf=(c,dir)=>dir==='r'?{...NEWST,...(c.r||{})}:c;
 const deckOf=id=>S.decks.find(d=>d.id===id)||{};
 const dirsOf=id=>{const d=deckOf(id).dir||'f';return d==='b'?['f','r']:[d]};
+const dirsFor=c=>isK(c)?['f']:dirsOf(c.deck);
 function items(cs){const out=[],today=isoDay();
- for(const c of cs){const ds=dirsOf(c.deck);
+ for(const c of cs){const ds=dirsFor(c);
   for(const dir of ds){const s=stOf(c,dir);
    // 雙向：另一面今天已經複習過，這一面就留到明天（學習中的除外）
    if(ds.length>1&&s.st!=='lrn'&&c.lr&&c.lr[dir==='f'?'r':'f']===today)continue;
@@ -309,21 +393,25 @@ function fmt(ms){
  const d=Math.max(1,Math.round(ms/D));
  return d<31?d+' 天':d<365?(d/30).toFixed(1).replace('.0','')+' 個月':(d/365).toFixed(1).replace('.0','')+' 年';
 }
+// 主題篩選：deck.tf，''=全部，'~none'=沒有主題的卡
+const topicsOf=deck=>{const out=[];for(const c of S.cards.filter(c=>c.deck===deck).sort((a,b)=>a.c-b.c))if(c.tp&&!out.includes(c.tp))out.push(c.tp);return out};
+const topicOK=c=>{const tf=deckOf(S.cur).tf||'';return !tf||(tf==='~none'?!c.tp:c.tp===tf)};
 function queue(){
- const n=Date.now(),eod=rollover(),its=items(deckCards());
+ const n=Date.now(),eod=rollover(),its=items(deckCards().filter(topicOK));
+ const revAll=items(deckCards()).filter(i=>i.s.st==='rev'&&i.s.due<eod).length,paused=S.cfg.pauseAt>0&&revAll>S.cfg.pauseAt;
  const lrnAll=its.filter(i=>i.s.st==='lrn'&&i.s.due<eod).sort((a,b)=>a.s.due-b.s.due);
  const lrn=lrnAll.filter(i=>i.s.due<=n);
  const rev=its.filter(i=>i.s.st==='rev'&&i.s.due<eod).sort((a,b)=>a.s.due-b.s.due);
  const seenNew=new Set();
  const nw=its.filter(i=>i.s.st==='new').sort((a,b)=>a.c.c-b.c.c||(a.dir<b.dir?-1:1))
   .filter(i=>{if(seenNew.has(i.c.id))return false;seenNew.add(i.c.id);return true})
-  .slice(0,Math.max(0,S.lim-todayN()));
- return {lrnAll,lrn,rev,nw,next:lrn[0]||rev[0]||nw[0]||null,wait:lrnAll[0]||null};
+  .slice(0,paused?0:Math.max(0,S.lim-todayN()));
+ return {lrnAll,lrn,rev,nw,paused,revAll,next:lrn[0]||rev[0]||nw[0]||null,wait:lrnAll[0]||null};
 }
 
 function renderDecks(){
  $('#deck').innerHTML=S.decks.map(d=>`<option value="${esc(d.id)}"${d.id===S.cur?' selected':''}>${esc(d.name)}</option>`).join('');
- const d=S.decks.find(d=>d.id===S.cur);$('#renameIn').value=d?d.name:'';$('#lim').value=S.lim;$('#dirSel').value=deckOf(S.cur).dir||'f';
+ const d=S.decks.find(d=>d.id===S.cur);$('#renameIn').value=d?d.name:'';$('#lim').value=S.lim;$('#pauseAt').value=S.cfg.pauseAt;$('#roundMin').value=S.cfg.roundMin;$('#autoSay').checked=S.cfg.auto;$('#rate').value=String(S.cfg.rate);$('#dirSel').value=deckOf(S.cur).dir||'f';
  const cnt={};for(const c of S.cards)cnt[c.deck]=(cnt[c.deck]||0)+1;
  $('#deckList').innerHTML=S.decks.map(d=>`<li><div class="t"><b>${esc(d.name)}</b><span>${cnt[d.id]||0} 張${d.id===S.cur?' · 目前牌組':''}</span></div><button class="danger" data-deldeck="${esc(d.id)}">刪除</button></li>`).join('');
 }
@@ -337,11 +425,35 @@ function hardInfo(c){
 const hardCards=()=>deckCards().map(c=>({c,...hardInfo(c)})).filter(x=>x.hard).sort((a,b)=>b.score-a.score);
 const drillDir=()=>deckOf(S.cur).dir==='r'?'r':'f';
 const realDue=it=>it.s.st!=='new'&&it.s.due<rollover();
+function chunkFace(c){
+ const segs=chunkSegs(c),L=t=>String(t).length>70?' long':'';
+ return `<div class="kz${L(c.b)}">${esc(c.b)}</div>`+(showBack?'':segs?`<div class="ken${L(c.f)}">${blankHtml(segs)}</div>`:`<p class="warnchunk">這張卡的 chunk 沒有出現在英文句子裡，翻面後可以按 🚩 標記</p>`);
+}
+function chunkBack(c){
+ const segs=chunkSegs(c);
+ return `<div class="back"><div class="ken">${segs?markHtml(segs):esc(c.f)}</div>${c.nt?`<div class="nt">${multi(c.nt)}</div>`:''}${c.td?`<details class="td"><summary>主題詳解${c.tp?'：'+esc(c.tp):''}</summary><div>${multi(c.td)}</div></details>`:''}</div>`;
+}
+function renderTopicSel(){
+ const ts=topicsOf(S.cur),d=deckOf(S.cur),sel=$('#topicSel');
+ if(d.tf&&d.tf!=='~none'&&!ts.includes(d.tf))d.tf='';
+ const hasNone=ts.length&&deckCards().some(c=>!c.tp);
+ sel.hidden=!ts.length;
+ sel.innerHTML=`<option value="">全部主題</option>`+ts.map(t=>`<option value="${esc(t)}">${esc(t)}</option>`).join('')+(hasNone?'<option value="~none">沒有主題的卡（單字卡等）</option>':'');
+ sel.value=d.tf||'';
+}
+function streakDays(){const n=Date.now(),tot=e=>e?(e.new||0)+(e.rev||0):0;let k=0;for(let i=tot(S.log[isoDay()])?0:1;i<400;i++){if(tot(S.log[isoDay(n-i*D)]))k++;else break}return k}
+function renderMini(){
+ const n=Date.now(),tot=e=>e?(e.new||0)+(e.rev||0):0,days=[];for(let i=6;i>=0;i--){const ms=n-i*D;days.push({ms,v:tot(S.log[isoDay(ms)])})}
+ const mx=Math.max(1,...days.map(d=>d.v));
+ $('#mini').innerHTML=`<div class="top"><span>今天已刷<b>${days[6].v}</b>張</span><span>連續<b>${streakDays()}</b>天</span></div>
+  <div class="b7" role="img" aria-label="最近 7 天每天刷卡數">${days.map((d,i)=>{const w=new Date(d.ms-4*36e5);return `<div class="${i===6?'t':''}" title="${w.getMonth()+1}/${w.getDate()}：${d.v} 張"><span>${d.v||''}</span><i style="height:${d.v/mx*100}%"></i><span>${i===6?'今':WK[w.getDay()]}</span></div>`}).join('')}</div>`;
+}
 function renderStudy(){
  clearTimeout(timer);
  const g=$('#stage');
  $('#undo').disabled=!undoStack.length;
  if(drill&&drill.deck!==S.cur)drill=null;
+ renderTopicSel();renderMini();$('#pauseNote').hidden=true;
  if(drill){
   drill.q=drill.q.filter(id=>S.cards.some(c=>c.id===id));
   $('#stats').innerHTML=`<div class="drillbar"><span>集中練習困難卡：剩 <b>${drill.q.length}</b> 張</span><button class="ghost" id="drillEnd">結束練習</button></div>`;
@@ -351,6 +463,7 @@ function renderStudy(){
  }else{
   const Q=queue();
   $('#stats').innerHTML=`<span><b>${Q.nw.length}</b>新卡</span><span><b>${Q.lrnAll.length}</b>學習中</span><span><b>${Q.rev.length}</b>待複習</span>`;
+  $('#pauseNote').hidden=!Q.paused;if(Q.paused)$('#pauseNote').textContent=`今天待複習 ${Q.revAll} 張，超過 ${S.cfg.pauseAt} 張，先暫停新卡（可在設定調整）`;
   cur=Q.next;
   if(!cur){$('#editCur').hidden=true;
    if(Q.wait){const ms=Q.wait.s.due-Date.now();g.innerHTML=`<div class="card done"><b>稍等一下</b><p class="note">下一張學習中的卡片約 ${esc(fmt(ms))}後出現。</p></div>`;timer=setTimeout(renderStudy,Math.min(Math.max(ms,1e3),3e4));return}
@@ -359,12 +472,12 @@ function renderStudy(){
   }
  }
  $('#editCur').hidden=false;
- const rv=cur.dir==='r',c=cur.c,real=!drill||realDue(cur);
- const tag=(drill?'困難卡練習':cur.s.st==='new'?'新卡':cur.s.st==='lrn'?'學習中':'複習')+(rv?' · 反向':'');
+ const rv=cur.dir==='r',c=cur.c,real=!drill||realDue(cur),k=isK(c);
+ const tag=(k&&c.tp?c.tp+' · ':'')+(drill?'困難卡練習':cur.s.st==='new'?'新卡':cur.s.st==='lrn'?'學習中':'複習')+(rv?' · 反向':'');
  const sub=i=>real?fmt(sched(cur.s,i).due-Date.now()):i===1?'等一下再出現':'本輪完成';
  g.innerHTML=`<div class="card" id="theCard"><span class="tag">${tag}</span>${rv&&!showBack?'':'<button class="say" id="say" aria-label="唸英文">🔊 發音</button>'}
-  <div class="front${rv?' rv':''}">${esc(rv?c.b:c.f)}</div>
-  ${showBack?`<div class="back">${rv?`<div class="m en">${esc(c.f)}</div>`:`<div class="m">${esc(c.b)}</div>`}${c.ex?`<div class="ex">${esc(c.ex)}</div>`:''}</div>`:`<p class="hint">點卡片或按空白鍵翻面</p>`}</div>
+  ${k?chunkFace(c):`<div class="front${rv?' rv':''}${sizeCls(rv?c.b:c.f)}">${esc(rv?c.b:c.f)}</div>`}
+  ${showBack?(k?chunkBack(c):`<div class="back">${rv?`<div class="m en">${esc(c.f)}</div>`:`<div class="m">${esc(c.b)}</div>`}${c.ex?`<div class="ex">${esc(c.ex)}</div>`:''}</div>`)+`<div class="backtools"><button class="flag" id="flagBtn" aria-pressed="${!!c.flag}">${c.flag?'🚩 已標記':'🚩 標記'}</button></div>`:`<p class="hint">點卡片或按空白鍵翻面</p>`}</div>
   ${showBack?`<div class="grades">${['忘了','困難','記得','簡單'].map((l,i)=>`<button class="g${i+1}" data-q="${i+1}">${l}<small>${esc(sub(i+1))}</small></button>`).join('')}</div>`:`<div class="grades" style="grid-template-columns:1fr"><button class="pri" id="flip">顯示答案</button></div>`}`;
 }
 // 每日複習紀錄，只留最近 365 天
@@ -388,39 +501,65 @@ function grade(q){
   c.h=[...(c.h||[]),q].slice(-5);
  }
  if(drill){const id=drill.q.shift();if(q===1)drill.q.push(id)}
+ if(round){round.n++;$('#roundN').textContent=round.n}
  showBack=false;save();renderStudy();
 }
-function speak(t){try{const u=new SpeechSynthesisUtterance(t);u.lang='en-US';u.rate=.95;speechSynthesis.cancel();speechSynthesis.speak(u)}catch(e){toast('這個瀏覽器不支援發音')}}
+// 只唸英文：中日韓文字一律去掉，沒有英文字母就不唸
+let enVoice=null;
+function pickVoice(){try{const vs=speechSynthesis.getVoices();enVoice=vs.find(v=>/^en[-_]US/i.test(v.lang)&&v.localService)||vs.find(v=>/^en[-_]US/i.test(v.lang))||vs.find(v=>/^en/i.test(v.lang))||null}catch(e){}}
+try{pickVoice();speechSynthesis.addEventListener('voiceschanged',pickVoice)}catch(e){}
+function speak(t,quiet){
+ t=String(t||'').replace(/[\u2E80-\u9FFF\uAC00-\uD7AF\uF900-\uFAFF\uFF00-\uFFEF\u3000-\u303F]+/g,' ').replace(/\s+/g,' ').trim();
+ if(!/[A-Za-z]/.test(t)){if(!quiet)toast('這張卡沒有英文可以唸');return}
+ try{const u=new SpeechSynthesisUtterance(t);if(!enVoice)pickVoice();if(enVoice)u.voice=enVoice;u.lang=enVoice?enVoice.lang:'en-US';u.rate=S.cfg.rate;speechSynthesis.cancel();speechSynthesis.speak(u)}
+ catch(e){if(!quiet)toast('這個瀏覽器不支援發音')}
+}
+// chunk 卡唸英文整句，單字卡唸正面單字（兩者都存在 c.f）
+const speakCard=(c,quiet)=>speak(c.f,quiet);
+function flip(){if(cur&&!showBack){showBack=true;renderStudy();if(S.cfg.auto)speakCard(cur.c,true)}}
 
 function renderCards(){
  const q=$('#q').value.trim().toLowerCase(),n=Date.now();
- const hs=hardCards(),hm=new Map(hs.map(x=>[x.c.id,x]));
- $('#fHard').textContent=`困難卡（${hs.length}）`;$('#fAll').setAttribute('aria-pressed',!onlyHard);$('#fHard').setAttribute('aria-pressed',onlyHard);
- const base=onlyHard?hs.map(x=>x.c):deckCards().sort((a,b)=>b.c-a.c);
- const cs=base.filter(c=>!q||(c.f+' '+c.b).toLowerCase().includes(q));
- $('#cnt').textContent=onlyHard?`困難卡 ${hs.length} 張，越上面越常忘記${q?`，符合 ${cs.length} 張`:''}`:`共 ${deckCards().length} 張${q?`，符合 ${cs.length} 張`:''}`;
+ const hs=hardCards(),hm=new Map(hs.map(x=>[x.c.id,x])),fl=deckCards().filter(c=>c.flag).sort((a,b)=>a.c-b.c),onlyHard=listF==='hard';
+ $('#fHard').textContent=`困難卡（${hs.length}）`;$('#fFlag').textContent=`🚩 標記（${fl.length}）`;
+ for(const [id,v] of [['#fAll','all'],['#fHard','hard'],['#fFlag','flag']])$(id).setAttribute('aria-pressed',listF===v);
+ const base=listF==='hard'?hs.map(x=>x.c):listF==='flag'?fl:deckCards().sort((a,b)=>b.c-a.c);
+ $('#flagBox').hidden=listF!=='flag'||!fl.length;
+ const cs=base.filter(c=>!q||[c.f,c.b,c.ck,c.tp].join(' ').toLowerCase().includes(q));
+ $('#cnt').textContent=listF==='flag'?`被標記的卡 ${fl.length} 張${q?`，符合 ${cs.length} 張`:''}`:onlyHard?`困難卡 ${hs.length} 張，越上面越常忘記${q?`，符合 ${cs.length} 張`:''}`:`共 ${deckCards().length} 張${q?`，符合 ${cs.length} 張`:''}`;
  $('#hardBox').hidden=!onlyHard||!hs.length;$('#drillBtn').textContent=`集中練習困難卡（${hs.length} 張）`;
  const ds=dirsOf(S.cur),lab=x=>x.st==='new'?'新卡':x.due<=n?'現在要複習':`下次 ${fmt(x.due-n)}後`;
- $('#list').innerHTML=cs.map(c=>{const s=ds.length>1?`正：${lab(c)} · 反：${lab(stOf(c,'r'))}`:ds[0]==='r'?`反向：${lab(stOf(c,'r'))}`:lab(c);
+ $('#list').innerHTML=cs.map(c=>{const s=isK(c)?lab(c):ds.length>1?`正：${lab(c)} · 反：${lab(stOf(c,'r'))}`:ds[0]==='r'?`反向：${lab(stOf(c,'r'))}`:lab(c);
   const h=hm.get(c.id);
-  return `<li><div class="t"><b>${esc(c.f)}</b><span>${esc(c.b)} · ${esc(s)}${h?` · <em class="hard">${esc(h.why)}</em>`:''}</span></div><button data-ed="${esc(c.id)}">編輯</button><button data-del="${esc(c.id)}" class="danger">刪除</button></li>`}).join('')||`<li class="note">${onlyHard?'目前沒有困難卡，很棒！':'沒有卡片'}</li>`;
+  const extra=`${h?` · <em class="hard">${esc(h.why)}</em>`:''}${c.flag?' · 🚩':''}`;
+  if(isK(c))return `<li><div class="t"><b>${esc(c.ck)}</b>${c.tp?` <small class="tp">${esc(c.tp)}</small>`:''}<span>${esc(c.b)}</span><span>${esc(c.f)} · ${esc(s)}${extra}${chunkSegs(c)?'':' · <em class="hard">chunk 不在句子裡</em>'}</span></div><button data-ed="${esc(c.id)}">編輯</button><button data-del="${esc(c.id)}" class="danger">刪除</button></li>`;
+  return `<li><div class="t"><b>${esc(c.f)}</b><span>${esc(c.b)} · ${esc(s)}${extra}</span></div><button data-ed="${esc(c.id)}">編輯</button><button data-del="${esc(c.id)}" class="danger">刪除</button></li>`}).join('')||`<li class="note">${onlyHard?'目前沒有困難卡，很棒！':listF==='flag'?'沒有被標記的卡。複習時翻面後可以按「🚩 標記」。':'沒有卡片'}</li>`;
 }
+let formK=false;
+function setFormType(k){formK=k;$('#tW').setAttribute('aria-pressed',!k);$('#tK').setAttribute('aria-pressed',k);$('#fW').hidden=k;$('#fK').hidden=!k}
 function editCard(id){
  const c=S.cards.find(c=>c.id===id);if(!c)return;
- setView('cards');$('#fid').value=c.id;$('#ff').value=c.f;$('#fb').value=c.b;$('#fe').value=c.ex;
- $('#formTitle').textContent='編輯卡片';$('#fsave').textContent='儲存';$('#fcancel').hidden=false;$('#ff').focus();
+ setView('cards');$('#fid').value=c.id;setFormType(isK(c));
+ if(isK(c)){$('#kz').value=c.b;$('#ke').value=c.f;$('#kc').value=c.ck;$('#kn').value=c.nt;$('#kt').value=c.tp;$('#kd').value=c.td}
+ else{$('#ff').value=c.f;$('#fb').value=c.b;$('#fe').value=c.ex}
+ $('#formTitle').textContent='編輯卡片';$('#fsave').textContent='儲存';$('#fcancel').hidden=false;$(isK(c)?'#kz':'#ff').focus();
 }
-function resetForm(){$('#form').reset();$('#fid').value='';$('#formTitle').textContent='新增卡片';$('#fsave').textContent='加入';$('#fcancel').hidden=true}
+function resetForm(){$('#form').reset();$('#fid').value='';setFormType(formK);$('#formTitle').textContent='新增卡片';$('#fsave').textContent='加入';$('#fcancel').hidden=true}
 
+// 只用 Tab，或半形逗號（可加雙引號）分隔；全形逗號「，」不是分隔符號
 function parseLines(txt){
- return txt.split(/\r?\n/).map(l=>l.trim()).filter(Boolean).map(l=>{
+ return txt.split(/\r?\n/).filter(l=>l.trim()).map(l=>{
   if(l.includes('\t'))return l.split('\t').map(s=>s.trim());
-  const out=[];let f='',inQ=false;
+  const out=[];let f='',inQ=false;l=l.trim();
   for(let i=0;i<l.length;i++){const ch=l[i];
    if(inQ){if(ch==='"'&&l[i+1]==='"'){f+='"';i++}else if(ch==='"')inQ=false;else f+=ch}
-   else if(ch==='"')inQ=true;else if(ch===','||ch==='，'){out.push(f.trim());f=''}else f+=ch}
-  out.push(f.trim());return out;
- }).filter(r=>r[0]&&r[1]);
+   else if(ch==='"'&&!f.trim())inQ=true;else if(ch===','){out.push(f.trim());f=''}else f+=ch}
+  out.push(f.trim());
+  // 逗號格式的單字卡：例句裡沒加引號的逗號接回去
+  if(out.length>3&&out.length<6)return [out[0],out[1],out.slice(2).join(', ')];
+  return out;
+ }).map(r=>r.length>=6||(r.length===5&&r[2])?{k:true,zh:r[0],en:r[1],ck:r[2],nt:r[3]||'',tp:r[4]||'',td:r[5]||''}:{k:false,f:r[0],b:r[1],ex:r[2]||''})
+  .filter(r=>r.k?r.zh&&r.en&&r.ck:r.f&&r.b);
 }
 const csvCell=s=>/[",\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s;
 async function copyOut(t){$('#expOut').value=t;try{await navigator.clipboard.writeText(t);toast('已複製')}catch(e){$('#expOut').select();toast('請手動全選複製')}}
@@ -432,7 +571,7 @@ function render(){renderDecks();renderBackup();$('#warn').hidden=canStore;if(vie
 const WK='日一二三四五六';
 function renderStat(){
  const n=Date.now(),tk=isoDay(),t=S.log[tk]||{new:0,rev:0,again:0},tot=e=>e?(e.new||0)+(e.rev||0):0;
- let streak=0;for(let i=tot(t)?0:1;i<400;i++){if(tot(S.log[isoDay(n-i*D)]))streak++;else break}
+ const streak=streakDays();
  $('#kpiToday').innerHTML=`<div class="kpi"><b>${t.new||0}</b><span>新卡</span></div><div class="kpi"><b>${t.rev||0}</b><span>複習</span></div><div class="kpi"><b>${streak}</b><span>連續天數</span></div>`+
   `<p class="note" style="grid-column:1/-1;margin:4px 0 0">今天共複習 ${tot(t)} 次${t.again?`，其中按「忘了」${t.again} 次`:''}。連續天數算的是每天至少複習 1 張。</p>`;
  const days=[];for(let i=29;i>=0;i--){const ms=n-i*D;days.push({k:isoDay(ms),ms,e:S.log[isoDay(ms)]})}
@@ -456,35 +595,69 @@ function renderStat(){
 }
 
 document.querySelector('nav').addEventListener('click',e=>{const b=e.target.closest('button');if(b)setView(b.dataset.v)});
+$('#topicSel').addEventListener('change',e=>{const d=deckOf(S.cur);if(!d.id)return;d.tf=e.target.value;showBack=false;save();renderStudy()});
+const mmss=ms=>{const t=Math.max(0,Math.ceil(ms/1e3));return Math.floor(t/60)+':'+String(t%60).padStart(2,'0')};
+function startRound(){round={end:Date.now()+S.cfg.roundMin*6e4,n:0};$('#roundEnd').hidden=true;$('#roundBar').hidden=false;$('#roundBtn').hidden=true;$('#roundN').textContent='0';tickRound();clearInterval(roundT);roundT=setInterval(tickRound,500)}
+function tickRound(){if(!round)return;const left=round.end-Date.now();$('#roundLeft').textContent=mmss(left);if(left<=0)endRound(true)}
+function endRound(show){clearInterval(roundT);const n=round?round.n:0;round=null;$('#roundBar').hidden=true;$('#roundBtn').hidden=false;
+ if(show){$('#roundEndT').textContent=`這輪結束：刷了 ${n} 張`;$('#roundEndSub').textContent=n?`${S.cfg.roundMin} 分鐘，平均每張 ${Math.round(S.cfg.roundMin*60/n)} 秒。`:'這輪沒有刷到卡。';$('#roundEnd').hidden=false;$('#roundAgain').focus()}}
+$('#roundBtn').addEventListener('click',()=>{setView('study');startRound()});
+$('#roundStop').addEventListener('click',()=>endRound(true));
+$('#roundAgain').addEventListener('click',startRound);
+$('#roundClose').addEventListener('click',()=>{$('#roundEnd').hidden=true});
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)tickRound()});
 $('#dirSel').addEventListener('change',e=>{const d=deckOf(S.cur);if(!d.id)return;d.dir=e.target.value;showBack=false;save();render();toast('已更新練習方向')});
 $('#deck').addEventListener('change',e=>{S.cur=e.target.value;drill=null;showBack=false;undoStack=[];save();resetForm();render()});
 $('#newDeckBtn').addEventListener('click',()=>{$('#newDeckRow').hidden=!$('#newDeckRow').hidden;$('#newDeckName').focus()});
 $('#newDeckOk').addEventListener('click',()=>{const n=$('#newDeckName').value.trim();if(!n)return;const id=uid();S.decks.push({id,name:n});S.cur=id;$('#newDeckName').value='';$('#newDeckRow').hidden=true;save();render();toast('已建立牌組')});
 $('#stage').addEventListener('click',e=>{
+ const fb=e.target.closest('#flagBtn');
+ if(fb){e.stopPropagation();const c=cur&&S.cards.find(x=>x.id===cur.c.id);if(!c)return;if(c.flag)delete c.flag;else c.flag=true;save();
+  fb.setAttribute('aria-pressed',!!c.flag);fb.textContent=c.flag?'🚩 已標記':'🚩 標記';toast(c.flag?'已標記，可到「卡片」篩選複製':'已取消標記');return}
+ if(e.target.closest('details'))return;
  if(e.target.closest('#drillEnd2')){drill=null;showBack=false;renderStudy();return}
- if(e.target.closest('#say')){e.stopPropagation();cur&&speak(cur.c.f);return}
+ if(e.target.closest('#say')){e.stopPropagation();cur&&speakCard(cur.c);return}
  const g=e.target.closest('[data-q]');if(g){grade(+g.dataset.q);return}
- if(e.target.closest('#flip')||e.target.closest('#theCard')){if(cur&&!showBack){showBack=true;renderStudy()}}
+ if(e.target.closest('#flip')||e.target.closest('#theCard'))flip();
 });
 document.addEventListener('keydown',e=>{
- if(view!=='study'||/INPUT|TEXTAREA|SELECT/.test(e.target.tagName))return;
- if(e.key===' '||e.key==='Enter'){e.preventDefault();if(cur&&!showBack){showBack=true;renderStudy()}}
+ if(view!=='study'||!$('#roundEnd').hidden||/INPUT|TEXTAREA|SELECT/.test(e.target.tagName))return;
+ if(e.key===' '||e.key==='Enter'){e.preventDefault();flip()}
  else if(/^[1-4]$/.test(e.key))grade(+e.key);
  else if(e.key==='z'||e.key==='u')$('#undo').click();
 });
 $('#undo').addEventListener('click',()=>{const u=undoStack.pop();if(!u)return;const i=S.cards.findIndex(c=>c.id===u.card.id);if(i>-1)S.cards[i]=u.card;S.today=u.today;
  if(u.lk){if(u.lp)S.log[u.lk]=u.lp;else delete S.log[u.lk]}
- if(u.drill)drill=u.drill;showBack=false;save();renderStudy();toast('已復原')});
+ if(u.drill)drill=u.drill;
+ if(round&&round.n>0){round.n--;$('#roundN').textContent=round.n}showBack=false;save();renderStudy();toast('已復原')});
 $('#editCur').addEventListener('click',()=>cur&&editCard(cur.c.id));
+$('#tW').addEventListener('click',()=>setFormType(false));
+$('#tK').addEventListener('click',()=>setFormType(true));
 $('#form').addEventListener('submit',e=>{e.preventDefault();
- const f=$('#ff').value.trim(),b=$('#fb').value.trim(),ex=$('#fe').value.trim(),id=$('#fid').value;if(!f||!b)return;
- if(id){const c=S.cards.find(c=>c.id===id);if(c)Object.assign(c,{f,b,ex});toast('已儲存');resetForm()}
- else{S.cards.push(mk(S.cur,f,b,ex));toast('已加入');$('#form').reset();$('#ff').focus()}
+ const v=s=>$(s).value.trim(),id=$('#fid').value;let fields;
+ if(formK){
+  fields={t:'k',b:v('#kz'),f:v('#ke'),ck:v('#kc'),nt:v('#kn'),tp:v('#kt'),td:v('#kd'),ex:''};
+  if(!fields.b||!fields.f||!fields.ck){toast('中文整句、英文整句、chunk 都要填');return}
+  if(!chunkSegs(fields)){toast('chunk 要出現在英文整句裡');return}
+ }else{
+  fields={f:v('#ff'),b:v('#fb'),ex:v('#fe')};
+  if(!fields.f||!fields.b){toast('正面和背面都要填');return}
+ }
+ if(id){const c=S.cards.find(c=>c.id===id);if(c){if(!formK){delete c.t;delete c.ck;delete c.nt;delete c.tp;delete c.td}Object.assign(c,fields)}toast('已儲存');resetForm()}
+ else{const c=formK?mkK(S.cur,fields.b,fields.f,fields.ck,fields.nt,fields.tp,fields.td):mk(S.cur,fields.f,fields.b,fields.ex);S.cards.push(c);toast('已加入');
+  const keep=formK?{kt:$('#kt').value,kd:$('#kd').value}:null;$('#form').reset();if(keep){$('#kt').value=keep.kt;$('#kd').value=keep.kd}$(formK?'#kz':'#ff').focus()}
  save();renderCards();
 });
 $('#fcancel').addEventListener('click',resetForm);
-$('#fAll').addEventListener('click',()=>{onlyHard=false;renderCards()});
-$('#fHard').addEventListener('click',()=>{onlyHard=true;renderCards()});
+$('#fAll').addEventListener('click',()=>{listF='all';renderCards()});
+$('#fHard').addEventListener('click',()=>{listF='hard';renderCards()});
+$('#fFlag').addEventListener('click',()=>{listF='flag';$('#flagOut').hidden=true;renderCards()});
+$('#flagCopy').addEventListener('click',async()=>{
+ const fl=deckCards().filter(c=>c.flag).sort((a,b)=>a.c-b.c);
+ const t=fl.map((c,i)=>isK(c)?`${i+1}. 中文：${c.b}\n   英文：${c.f}\n   chunk：${c.ck}`:`${i+1}. 單字：${c.f}\n   意思：${c.b}`).join('\n\n');
+ const o=$('#flagOut');o.value=t;o.hidden=false;
+ try{await navigator.clipboard.writeText(t);toast(`已複製 ${fl.length} 張`)}catch(e){o.select();toast('請手動全選複製')}
+});
 $('#drillBtn').addEventListener('click',()=>{const hs=hardCards();if(!hs.length)return;
  drill={deck:S.cur,q:hs.map(x=>x.c.id),total:hs.length};showBack=false;setView('study')});
 $('#stats').addEventListener('click',e=>{if(e.target.closest('#drillEnd')){drill=null;showBack=false;renderStudy();toast('已結束困難卡練習')}});
@@ -527,9 +700,13 @@ async function readApkg(file){
  }finally{db.close()}
 }
 const uniqueName=(n,taken)=>{let x=n,i=2;while(taken.has(x))x=`${n} (${i++})`;taken.add(x);return x};
+// rows: [{k:false,f,b,ex}] 或 [{k:true,zh,en,ck,nt,tp,td}]，也接受 apkg 的 [f,b,ex]；依原本順序加入
 function addRows(deck,rows){
- const have=new Set(S.cards.filter(c=>c.deck===deck).map(c=>c.f.toLowerCase()));let n=0,skip=0;
- for(const r of rows){const k=r[0].toLowerCase();if(have.has(k)){skip++;continue}S.cards.push(mk(deck,r[0],r[1],r[2]));have.add(k);n++}
+ const have=new Set(S.cards.filter(c=>c.deck===deck).map(c=>c.f.toLowerCase()));let n=0,skip=0,base=Date.now();
+ for(let r of rows){if(Array.isArray(r))r={k:false,f:r[0],b:r[1],ex:r[2]};
+  const key=(r.k?r.en:r.f).toLowerCase();if(have.has(key)){skip++;continue}
+  const c=r.k?mkK(deck,r.zh,r.en,r.ck,r.nt,r.tp,r.td):mk(deck,r.f,r.b,r.ex);c.c=base+n;
+  S.cards.push(c);have.add(key);n++}
  return {n,skip};
 }
 let apkgData=null;
@@ -575,7 +752,8 @@ $('#impBtn').addEventListener('click',()=>{
  const {n,skip}=addRows(S.cur,rows);
  save();$('#imp').value='';$('#impFile').value='';impMsg(`匯入 ${n} 張${skip?`，略過重複 ${skip} 張`:''}`);
 });
-$('#expCsv').addEventListener('click',()=>copyOut(deckCards().map(c=>[c.f,c.b,c.ex].map(csvCell).join(',')).join('\n')));
+const tsv=s=>String(s||'').replace(/[\t\r\n]+/g,' ');
+$('#expCsv').addEventListener('click',()=>copyOut(deckCards().sort((a,b)=>a.c-b.c).map(c=>(isK(c)?[c.b,c.f,c.ck,c.nt,c.tp,c.td]:[c.f,c.b,c.ex]).map(tsv).join('\t')).join('\n')));
 const backupText=()=>JSON.stringify({...S,meta:{...S.meta,exportedAt:Date.now()}});
 const markBackup=()=>{S.meta.lastBackup=Date.now();delete S.meta.snooze;save();renderBackup()};
 $('#expJson').addEventListener('click',async()=>{await copyOut(backupText());markBackup()});
@@ -620,6 +798,10 @@ function renderBackup(){
 }
 $('#bakGo').addEventListener('click',()=>{setView('io');$('#bakPanel').scrollIntoView({behavior:'smooth'})});
 $('#bakLater').addEventListener('click',()=>{S.meta.snooze=Date.now()+3*D;save();renderBackup()});
+$('#pauseAt').addEventListener('change',e=>{S.cfg.pauseAt=Math.max(0,Math.min(9999,parseInt(e.target.value)||0));save();render();toast('已更新')});
+$('#roundMin').addEventListener('change',e=>{S.cfg.roundMin=Math.max(1,Math.min(120,parseInt(e.target.value)||10));save();render();toast('已更新')});
+$('#autoSay').addEventListener('change',e=>{S.cfg.auto=e.target.checked;save();toast(e.target.checked?'翻面時會自動播放':'已關閉自動播放')});
+$('#rate').addEventListener('change',e=>{S.cfg.rate=+e.target.value;save();speak('This is the new speed.',true)});
 $('#lim').addEventListener('change',e=>{S.lim=Math.max(0,Math.min(999,parseInt(e.target.value)||0));save();toast('已更新')});
 $('#renameBtn').addEventListener('click',()=>{const n=$('#renameIn').value.trim(),d=S.decks.find(d=>d.id===S.cur);if(n&&d){d.name=n;save();render();toast('已改名')}});
 $('#deckList').addEventListener('click',e=>{
