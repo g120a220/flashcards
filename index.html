@@ -35,7 +35,7 @@ button:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-vis
 .pri{background:var(--hi);color:#1a1a1a}
 .danger{color:var(--red)}
 nav{display:flex;gap:6px;margin:14px 0;background:rgba(0,0,0,.18);padding:4px;border-radius:12px}
-nav button{flex:1;background:transparent;color:var(--on);opacity:.8}
+nav button{flex:1 1 0;background:transparent;color:var(--on);opacity:.8;padding:0 4px;white-space:nowrap;font-size:clamp(14px,3.9vw,16px)}
 nav button[aria-selected=true]{background:var(--panel);color:var(--ink);opacity:1}
 .stats{display:flex;gap:18px;justify-content:center;color:var(--on);margin:4px 0 12px;font-size:15px}
 .stats b{font:700 20px "Space Grotesk",sans-serif;margin-right:4px}
@@ -89,6 +89,24 @@ label{display:block;font-size:14px;color:var(--mute);margin:10px 0 4px}
 .sub{font-size:15px;margin:18px 0 8px;color:var(--mute);font-weight:500}
 .panel button:not(.pri):not(.danger){background:light-dark(#eef2fc,#24306a)}
 .panel .list button:not(.pri){background:transparent}
+:root{--bar:light-dark(#2747c9,#8ea6ff);--bar2:#e2493f;--track:light-dark(#eef2fc,#24306a)}
+.kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.kpi{background:var(--track);border-radius:10px;padding:10px;text-align:center}
+.kpi b{display:block;font:700 26px/1.1 "Space Grotesk",sans-serif}
+.kpi span{font-size:13px;color:var(--mute)}
+.bars{display:flex;align-items:flex-end;gap:2px;height:130px;border-bottom:1px solid var(--line);padding-top:16px}
+.bars div{flex:1 1 0;display:flex;flex-direction:column-reverse;height:100%;position:relative}
+.bars i{display:block;background:var(--bar);border-radius:2px 2px 0 0}
+.bars i.a{background:var(--bar2);border-radius:0}
+.bars div.t i:not(.a){background:var(--hi)}
+.axis{display:flex;justify-content:space-between;font-size:12px;color:var(--mute);margin-top:4px}
+.legend{display:flex;gap:14px;font-size:13px;color:var(--mute);margin-top:8px}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:4px;vertical-align:-1px}
+.hbar{display:grid;grid-template-columns:5.2em 1fr 2.6em;gap:8px;align-items:center;margin:6px 0;font-size:14px}
+.hbar span:first-child{color:var(--mute)}
+.hbar .tr{background:var(--track);border-radius:6px;height:14px;overflow:hidden}
+.hbar .tr i{display:block;height:100%;background:var(--bar);border-radius:6px}
+.hbar b{text-align:right;font-family:"Space Grotesk",sans-serif}
 .toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:#141a2e;color:#fff;padding:10px 16px;border-radius:10px;font-size:14px;opacity:0;transition:opacity .2s;pointer-events:none}
 .toast.on{opacity:1}
 [hidden]{display:none!important}
@@ -108,6 +126,7 @@ label{display:block;font-size:14px;color:var(--mute);margin:10px 0 4px}
  <nav role="tablist">
   <button role="tab" data-v="study" aria-selected="true">複習</button>
   <button role="tab" data-v="cards" aria-selected="false">卡片</button>
+  <button role="tab" data-v="stat" aria-selected="false">統計</button>
   <button role="tab" data-v="io" aria-selected="false">匯入／備份</button>
  </nav>
  <div id="bakWarn" class="warn bak" hidden><span id="bakText"></span><span class="row"><button id="bakGo">去備份</button><button id="bakLater">稍後</button></span></div>
@@ -134,6 +153,25 @@ label{display:block;font-size:14px;color:var(--mute);margin:10px 0 4px}
    <input type="search" id="q" placeholder="搜尋單字或意思">
    <p class="note" id="cnt"></p>
    <ul class="list" id="list"></ul>
+  </div>
+ </section>
+
+ <section id="stat" hidden>
+  <div class="panel">
+   <h2>今天</h2>
+   <div class="kpis" id="kpiToday"></div>
+  </div>
+  <div class="panel">
+   <h2>最近 30 天</h2>
+   <div id="chart30"></div>
+  </div>
+  <div class="panel">
+   <h2 id="futTitle">未來 7 天到期</h2>
+   <div id="fut7"></div>
+  </div>
+  <div class="panel">
+   <h2 id="mixTitle">目前牌組</h2>
+   <div class="kpis" id="kpiDeck"></div>
   </div>
  </section>
 
@@ -299,10 +337,18 @@ function renderStudy(){
   ${showBack?`<div class="back">${rv?`<div class="m en">${esc(c.f)}</div>`:`<div class="m">${esc(c.b)}</div>`}${c.ex?`<div class="ex">${esc(c.ex)}</div>`:''}</div>`:`<p class="hint">點卡片或按空白鍵翻面</p>`}</div>
   ${showBack?`<div class="grades">${['忘了','困難','記得','簡單'].map((l,i)=>{const x=sched(cur.s,i+1);return `<button class="g${i+1}" data-q="${i+1}">${l}<small>${esc(fmt(x.due-Date.now()))}</small></button>`}).join('')}</div>`:`<div class="grades" style="grid-template-columns:1fr"><button class="pri" id="flip">顯示答案</button></div>`}`;
 }
+// 每日複習紀錄，只留最近 365 天
+function logGrade(isNew,q){
+ const k=isoDay(),e=S.log[k]||(S.log[k]={new:0,rev:0,again:0});
+ if(isNew)e.new++;else e.rev++;if(q===1)e.again++;
+ const cut=isoDay(Date.now()-365*D);for(const x in S.log)if(x<cut)delete S.log[x];
+}
 function grade(q){
  if(!cur||!showBack)return;
  const c=S.cards.find(x=>x.id===cur.c.id);if(!c)return;
- undoStack.push({card:JSON.parse(JSON.stringify(c)),today:JSON.parse(JSON.stringify(S.today))});if(undoStack.length>30)undoStack.shift();
+ const lk=isoDay();
+ undoStack.push({card:JSON.parse(JSON.stringify(c)),today:JSON.parse(JSON.stringify(S.today)),lk,lp:S.log[lk]?{...S.log[lk]}:null});if(undoStack.length>30)undoStack.shift();
+ logGrade(cur.s.st==='new',q);
  if(cur.s.st==='new'){todayN();S.today.n[S.cur]=(S.today.n[S.cur]||0)+1}
  const x=pick(sched(cur.s,q));
  if(cur.dir==='r')c.r=x;else Object.assign(c,x);
@@ -341,8 +387,33 @@ async function copyOut(t){$('#expOut').value=t;try{await navigator.clipboard.wri
 function armed(btn,label,fn){if(btn.dataset.arm){fn();delete btn.dataset.arm;btn.textContent=label;return}btn.dataset.arm=1;btn.textContent='再按一次確認';setTimeout(()=>{if(btn.dataset.arm){delete btn.dataset.arm;btn.textContent=label}},3000)}
 
 function setView(v){view=v;for(const b of document.querySelectorAll('nav button'))b.setAttribute('aria-selected',b.dataset.v===v);
- for(const s of ['study','cards','io'])$('#'+s).hidden=s!==v;render()}
-function render(){renderDecks();renderBackup();$('#warn').hidden=canStore;if(view==='study')renderStudy();else if(view==='cards')renderCards()}
+ for(const s of ['study','cards','stat','io'])$('#'+s).hidden=s!==v;render()}
+function render(){renderDecks();renderBackup();$('#warn').hidden=canStore;if(view==='study')renderStudy();else if(view==='cards')renderCards();else if(view==='stat')renderStat()}
+const WK='日一二三四五六';
+function renderStat(){
+ const n=Date.now(),tk=isoDay(),t=S.log[tk]||{new:0,rev:0,again:0},tot=e=>e?(e.new||0)+(e.rev||0):0;
+ let streak=0;for(let i=tot(t)?0:1;i<400;i++){if(tot(S.log[isoDay(n-i*D)]))streak++;else break}
+ $('#kpiToday').innerHTML=`<div class="kpi"><b>${t.new||0}</b><span>新卡</span></div><div class="kpi"><b>${t.rev||0}</b><span>複習</span></div><div class="kpi"><b>${streak}</b><span>連續天數</span></div>`+
+  `<p class="note" style="grid-column:1/-1;margin:4px 0 0">今天共複習 ${tot(t)} 次${t.again?`，其中按「忘了」${t.again} 次`:''}。連續天數算的是每天至少複習 1 張。</p>`;
+ const days=[];for(let i=29;i>=0;i--){const ms=n-i*D;days.push({k:isoDay(ms),ms,e:S.log[isoDay(ms)]})}
+ const mx=Math.max(1,...days.map(d=>tot(d.e))),sum=days.reduce((a,d)=>a+tot(d.e),0),act=days.filter(d=>tot(d.e)).length;
+ const md=ms=>{const d=new Date(ms-4*36e5);return `${d.getMonth()+1}/${d.getDate()}`};
+ $('#chart30').innerHTML=`<p class="note" style="margin-top:0">30 天共 ${sum} 次，有 ${act} 天有複習，單日最多 ${mx===1&&!sum?0:mx} 次。</p>
+  <div class="bars" role="img" aria-label="最近 30 天每天複習次數">${days.map(d=>{const v=tot(d.e),a=Math.min(v,(d.e&&d.e.again)||0);
+   return `<div class="${d.k===tk?'t':''}" title="${md(d.ms)}：${v} 次${a?`（忘了 ${a}）`:''}"><i class="a" style="height:${a/mx*100}%"></i><i style="height:${(v-a)/mx*100}%"></i></div>`}).join('')}</div>
+  <div class="axis"><span>${md(days[0].ms)}</span><span>${md(days[15].ms)}</span><span>今天</span></div>
+  <div class="legend"><span><i style="background:var(--bar)"></i>記得／困難／簡單</span><span><i style="background:var(--bar2)"></i>忘了</span></div>`;
+ const dn=deckOf(S.cur).name||'',eod=rollover(),f=[0,0,0,0,0,0,0],mix={new:0,lrn:0,rev:0},ds=dirsOf(S.cur);
+ for(const c of deckCards())for(const dir of ds){const x=stOf(c,dir);mix[x.st]=(mix[x.st]||0)+1;if(x.st==='new')continue;
+  const i=x.due<eod?0:Math.floor((x.due-eod)/D)+1;if(i<7)f[i]++}
+ const fm=Math.max(1,...f);
+ $('#futTitle').textContent=`未來 7 天到期（${dn}）`;
+ $('#fut7').innerHTML=f.map((v,i)=>{const d=new Date(n-4*36e5+i*D);const l=i===0?'今天':i===1?'明天':`${d.getMonth()+1}/${d.getDate()}（${WK[d.getDay()]}）`;
+  return `<div class="hbar"><span>${l}</span><span class="tr"><i style="width:${v/fm*100}%"></i></span><b>${v}</b></div>`}).join('')+`<p class="note">不含還沒學過的新卡。今天的數字包含之前沒複習完的卡。</p>`;
+ $('#mixTitle').textContent=`目前牌組（${dn}）`;
+ $('#kpiDeck').innerHTML=`<div class="kpi"><b>${mix.new}</b><span>新卡</span></div><div class="kpi"><b>${mix.lrn}</b><span>學習中</span></div><div class="kpi"><b>${mix.rev}</b><span>已熟悉</span></div>`+
+  (ds.length>1?'<p class="note" style="grid-column:1/-1;margin:4px 0 0">雙向練習時，正反兩面分開計算。</p>':'');
+}
 
 document.querySelector('nav').addEventListener('click',e=>{const b=e.target.closest('button');if(b)setView(b.dataset.v)});
 $('#dirSel').addEventListener('change',e=>{const d=deckOf(S.cur);if(!d.id)return;d.dir=e.target.value;showBack=false;save();render();toast('已更新練習方向')});
@@ -360,7 +431,8 @@ document.addEventListener('keydown',e=>{
  else if(/^[1-4]$/.test(e.key))grade(+e.key);
  else if(e.key==='z'||e.key==='u')$('#undo').click();
 });
-$('#undo').addEventListener('click',()=>{const u=undoStack.pop();if(!u)return;const i=S.cards.findIndex(c=>c.id===u.card.id);if(i>-1)S.cards[i]=u.card;S.today=u.today;showBack=false;save();renderStudy();toast('已復原')});
+$('#undo').addEventListener('click',()=>{const u=undoStack.pop();if(!u)return;const i=S.cards.findIndex(c=>c.id===u.card.id);if(i>-1)S.cards[i]=u.card;S.today=u.today;
+ if(u.lk){if(u.lp)S.log[u.lk]=u.lp;else delete S.log[u.lk]}showBack=false;save();renderStudy();toast('已復原')});
 $('#editCur').addEventListener('click',()=>cur&&editCard(cur.c.id));
 $('#form').addEventListener('submit',e=>{e.preventDefault();
  const f=$('#ff').value.trim(),b=$('#fb').value.trim(),ex=$('#fe').value.trim(),id=$('#fid').value;if(!f||!b)return;
