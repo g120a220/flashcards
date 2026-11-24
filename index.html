@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="單字卡盒">
+<meta name="theme-color" content="#2747c9">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>單字卡盒</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+/* VOICE: calm, focused study tool, nothing between you and the card
+   IDEA: a box of ruled index cards you flip through
+   PICTURE: one big white index card with blue rules and a red top line
+   COLOUR and TYPE: cobalt ground, white card, highlighter yellow accent; Space Grotesk for words, Noto Sans TC for Chinese
+   LAYOUT: deck bar, tabs, card centred, grade buttons in one row under it */
+:root{color-scheme:light dark;--bg:light-dark(#2747c9,#0d1636);--panel:light-dark(#fff,#18234d);--ink:light-dark(#141a2e,#eef1ff);--mute:light-dark(#5b6385,#a7afd6);--line:light-dark(#dbe3f7,#2c3a6e);--rule:light-dark(#cfe0f7,#24346a);--red:#e2493f;--hi:#ffd400;--on:#fff}
+:root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 "Noto Sans TC",system-ui,sans-serif;overflow-x:clip;min-height:100vh}
+.wrap{max-width:720px;margin:0 auto;padding:calc(16px + env(safe-area-inset-top)) max(4vw,14px,env(safe-area-inset-right)) calc(48px + env(safe-area-inset-bottom))}
+header{display:flex;flex-wrap:wrap;gap:10px;align-items:center;color:var(--on)}
+h1{font:700 22px/1.1 "Space Grotesk","Noto Sans TC",sans-serif;margin:0;flex:1 1 auto}
+select,input,textarea,button{font:inherit;font-size:16px;color:inherit}
+select,input[type=text],input[type=number],input[type=search],textarea{background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:10px;padding:10px 12px;min-height:44px;width:100%}
+header select{width:auto;max-width:60vw}
+textarea{min-height:120px;resize:vertical;font-size:15px}
+button{min-height:44px;border-radius:10px;border:0;padding:0 16px;cursor:pointer;background:var(--panel);color:var(--ink);font-weight:500}
+button:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-visible{outline:3px solid var(--hi);outline-offset:2px}
+.ghost{background:transparent;color:var(--on);border:1px solid rgba(255,255,255,.45)}
+.pri{background:var(--hi);color:#1a1a1a}
+.danger{color:var(--red)}
+nav{display:flex;gap:6px;margin:14px 0;background:rgba(0,0,0,.18);padding:4px;border-radius:12px}
+nav button{flex:1;background:transparent;color:var(--on);opacity:.8}
+nav button[aria-selected=true]{background:var(--panel);color:var(--ink);opacity:1}
+.stats{display:flex;gap:18px;justify-content:center;color:var(--on);margin:4px 0 12px;font-size:15px}
+.stats b{font:700 20px "Space Grotesk",sans-serif;margin-right:4px}
+.card{position:relative;background:var(--panel);border-radius:6px;min-height:340px;padding:46px 24px 28px;box-shadow:0 14px 30px rgba(0,0,0,.25),0 2px 0 rgba(0,0,0,.08);
+ background-image:linear-gradient(var(--red),var(--red)),repeating-linear-gradient(transparent 0 31px,var(--rule) 31px 32px);background-size:100% 2px,100% 100%;background-position:0 34px,0 34px;background-repeat:no-repeat,repeat;cursor:pointer;animation:in .25s ease}
+@keyframes in{from{transform:translateY(8px) rotate(-.6deg);opacity:0}}
+@media(prefers-reduced-motion:reduce){.card{animation:none}}
+.tag{position:absolute;top:8px;left:16px;font-size:13px;color:var(--mute)}
+.say{position:absolute;top:4px;right:8px;background:transparent;font-size:14px;color:var(--mute);padding:0 10px}
+.front{font:700 clamp(30px,8vw,46px)/1.1 "Space Grotesk","Noto Sans TC",sans-serif;text-align:center;margin:28px 0 8px;overflow-wrap:anywhere}
+.back{border-top:2px dashed var(--line);margin-top:18px;padding-top:16px;text-align:center}
+.back .m{font-size:21px;font-weight:500}
+.back .ex{color:var(--mute);margin-top:10px;font-style:italic}
+.hint{text-align:center;color:var(--mute);font-size:14px;margin-top:40px}
+.grades{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-top:14px}
+.grades button{color:#fff;display:flex;flex-direction:column;justify-content:center;line-height:1.2;padding:8px 4px;min-height:58px}
+.grades small{font-size:13px;opacity:.9;font-weight:400}
+.g1{background:#d93a3a}.g2{background:#b86f00}.g3{background:#17894a}.g4{background:#1f5fe0}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.row>*{flex:1 1 auto}
+.under{display:flex;justify-content:space-between;margin-top:10px}
+.under button{background:transparent;color:var(--on);opacity:.85;padding:0 6px}
+.panel{background:var(--panel);border-radius:14px;padding:18px;margin-bottom:14px}
+.panel h2{font:700 18px "Space Grotesk","Noto Sans TC",sans-serif;margin:0 0 10px}
+label{display:block;font-size:14px;color:var(--mute);margin:10px 0 4px}
+.list{list-style:none;padding:0;margin:12px 0 0}
+.list li{display:flex;gap:10px;align-items:center;padding:10px 0;border-top:1px solid var(--line)}
+.list .t{flex:1}
+.list .t b{font-family:"Space Grotesk","Noto Sans TC",sans-serif}
+.list .t span{display:block;color:var(--mute);font-size:14px}
+.list button{padding:0 10px;font-size:14px;background:transparent;color:var(--mute)}
+.done{text-align:center;padding:60px 20px}
+.done b{display:block;font:700 30px "Space Grotesk","Noto Sans TC",sans-serif;margin-bottom:8px}
+.note{font-size:14px;color:var(--mute)}
+.warn{background:var(--hi);color:#1a1a1a;border-radius:10px;padding:10px 14px;font-size:14px;margin-bottom:10px}
+.toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:#141a2e;color:#fff;padding:10px 16px;border-radius:10px;font-size:14px;opacity:0;transition:opacity .2s;pointer-events:none}
+.toast.on{opacity:1}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<div class="wrap">
+ <header>
+  <h1>單字卡盒</h1>
+  <select id="deck" aria-label="牌組"></select>
+  <button class="ghost" id="newDeckBtn">＋牌組</button>
+ </header>
+ <div class="row" id="newDeckRow" hidden style="margin-top:10px">
+  <input type="text" id="newDeckName" placeholder="新牌組名稱">
+  <button class="pri" id="newDeckOk" style="flex:0 0 auto">建立</button>
+ </div>
+ <nav role="tablist">
+  <button role="tab" data-v="study" aria-selected="true">複習</button>
+  <button role="tab" data-v="cards" aria-selected="false">卡片</button>
+  <button role="tab" data-v="io" aria-selected="false">匯入／備份</button>
+ </nav>
+ <div id="warn" class="warn" hidden>這個瀏覽器無法儲存資料，關掉頁面卡片就會消失。請到「匯入／備份」複製備份。</div>
+
+ <section id="study">
+  <div class="stats" id="stats"></div>
+  <div id="stage"></div>
+  <div class="under"><button id="undo" disabled>↶ 復原</button><button id="editCur">編輯這張</button></div>
+ </section>
+
+ <section id="cards" hidden>
+  <div class="panel">
+   <h2 id="formTitle">新增卡片</h2>
+   <form id="form">
+    <input type="hidden" id="fid">
+    <label for="ff">正面（單字）</label><input type="text" id="ff" required autocomplete="off" autocapitalize="off">
+    <label for="fb">背面（意思）</label><input type="text" id="fb" required autocomplete="off">
+    <label for="fe">例句（選填）</label><input type="text" id="fe" autocomplete="off" autocapitalize="off">
+    <div class="row" style="margin-top:14px"><button class="pri" type="submit" id="fsave">加入</button><button type="button" id="fcancel" hidden>取消編輯</button></div>
+   </form>
+  </div>
+  <div class="panel">
+   <input type="search" id="q" placeholder="搜尋單字或意思">
+   <p class="note" id="cnt"></p>
+   <ul class="list" id="list"></ul>
+  </div>
+ </section>
+
+ <section id="io" hidden>
+  <div class="panel">
+   <h2>匯入到目前牌組</h2>
+   <p class="note">一行一張：<code>單字,意思,例句</code>。從 Excel 或 Google 試算表直接複製貼上（Tab 分隔）也可以。</p>
+   <textarea id="imp" placeholder="ubiquitous,無所不在的,Smartphones are ubiquitous."></textarea>
+   <div class="row" style="margin-top:10px"><input type="file" id="impFile" accept=".csv,.txt,.tsv"><button class="pri" id="impBtn" style="flex:0 0 auto">匯入</button></div>
+  </div>
+  <div class="panel">
+   <h2>備份</h2>
+   <p class="note">卡片只存在這支手機的瀏覽器裡。清除 Safari 資料或換手機就會不見，建議每週複製一次備份，貼到備忘錄或寄給自己。</p>
+   <div class="row"><button id="expCsv">複製目前牌組 CSV</button><button id="expJson">複製完整備份</button></div>
+   <textarea id="expOut" readonly placeholder="複製的內容也會顯示在這裡，可以手動全選。" style="margin-top:10px"></textarea>
+   <label for="restore">還原備份（會覆蓋全部資料）</label>
+   <textarea id="restore" placeholder="貼上完整備份"></textarea>
+   <button class="danger" id="restoreBtn" style="margin-top:8px">還原</button>
+  </div>
+  <div class="panel">
+   <h2>設定</h2>
+   <label for="lim">每個牌組每天的新卡上限</label><input type="number" id="lim" min="0" max="999">
+   <label>目前牌組</label>
+   <div class="row"><input type="text" id="renameIn"><button id="renameBtn" style="flex:0 0 auto">改名</button><button class="danger" id="delDeck" style="flex:0 0 auto">刪除牌組</button></div>
+  </div>
+ </section>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+{
+const K='flashbox-v1',M=6e4,D=864e5,STEPS=[1,10];
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+const dayKey=()=>new Date(Date.now()-4*36e5).toDateString();
+const rollover=()=>{const d=new Date(Date.now()-4*36e5);d.setHours(0,0,0,0);return d.getTime()+D+4*36e5};
+const mk=(deck,f,b,ex)=>({id:uid(),deck,f,b,ex:ex||'',st:'new',step:0,ivl:0,ease:2.5,reps:0,lapses:0,due:0,c:Date.now()});
+
+function seed(){
+ const id=uid();
+ const w=[['leverage','善用；槓桿作用','We can leverage our existing data to speed up testing.'],['mitigate','減輕；緩和','The new primer mitigates adhesion failure.'],['robust','穩健的；耐用的','We need a more robust process window.'],['feasible','可行的','Is it feasible to cut curing time by half?'],['viscosity','黏度','Lowering the viscosity improved leveling.'],['meticulous','一絲不苟的','She keeps meticulous lab records.'],['trade-off','取捨；權衡','There is a trade-off between hardness and flexibility.'],['ubiquitous','無所不在的','Touch screens are now ubiquitous.']];
+ return {decks:[{id,name:'英文單字（範例）'}],cur:id,cards:w.map(x=>mk(id,...x)),lim:20,today:{day:dayKey(),n:{}}};
+}
+let S,canStore=true;
+try{S=JSON.parse(localStorage.getItem(K))}catch(e){canStore=false}
+if(!S||!S.decks||!S.decks.length)S=seed();
+function save(){try{localStorage.setItem(K,JSON.stringify(S));canStore=true}catch(e){canStore=false}$('#warn').hidden=canStore}
+save();
+
+let view='study',cur=null,showBack=false,undoStack=[],timer=null;
+const toast=t=>{const e=$('#toast');e.textContent=t;e.classList.add('on');clearTimeout(e._t);e._t=setTimeout(()=>e.classList.remove('on'),1800)};
+const deckCards=()=>S.cards.filter(c=>c.deck===S.cur);
+function todayN(){if(S.today.day!==dayKey())S.today={day:dayKey(),n:{}};return S.today.n[S.cur]||0}
+
+function dueDays(d){return rollover()+(d-1)*D}
+function sched(c,q){
+ const n=Date.now(),x={...c};
+ if(x.st==='rev'){
+  if(q===1){x.lapses++;x.ease=Math.max(1.3,x.ease-.2);x.ivl=Math.max(1,Math.round(x.ivl*.5));x.st='lrn';x.step=0;x.due=n+STEPS[1]*M}
+  else{
+   if(q===2){x.ivl=Math.max(x.ivl+1,Math.round(x.ivl*1.2));x.ease=Math.max(1.3,x.ease-.15)}
+   else if(q===3)x.ivl=Math.max(x.ivl+1,Math.round(x.ivl*x.ease));
+   else{x.ivl=Math.max(x.ivl+2,Math.round(x.ivl*x.ease*1.3));x.ease+=.15}
+   x.due=dueDays(x.ivl)}
+ }else{
+  if(q===1){x.st='lrn';x.step=0;x.due=n+STEPS[0]*M}
+  else if(q===2){x.st='lrn';x.due=n+(x.step===0?6:STEPS[1])*M}
+  else if(q===3){if(x.step<STEPS.length-1){x.st='lrn';x.step++;x.due=n+STEPS[x.step]*M}else{x.st='rev';x.ivl=x.ivl||1;x.due=dueDays(x.ivl)}}
+  else{x.st='rev';x.ivl=Math.max(x.ivl||0,4);x.due=dueDays(x.ivl)}
+ }
+ x.reps++;return x;
+}
+function fmt(ms){
+ if(ms<36e5)return Math.max(1,Math.round(ms/M))+' 分';
+ if(ms<D)return Math.round(ms/36e5)+' 小時';
+ const d=Math.max(1,Math.round(ms/D));
+ return d<31?d+' 天':d<365?(d/30).toFixed(1).replace('.0','')+' 個月':(d/365).toFixed(1).replace('.0','')+' 年';
+}
+function queue(){
+ const n=Date.now(),eod=rollover(),cs=deckCards();
+ const lrnAll=cs.filter(c=>c.st==='lrn'&&c.due<eod).sort((a,b)=>a.due-b.due);
+ const lrn=lrnAll.filter(c=>c.due<=n);
+ const rev=cs.filter(c=>c.st==='rev'&&c.due<eod).sort((a,b)=>a.due-b.due);
+ const nw=cs.filter(c=>c.st==='new').sort((a,b)=>a.c-b.c).slice(0,Math.max(0,S.lim-todayN()));
+ return {lrnAll,lrn,rev,nw,next:lrn[0]||rev[0]||nw[0]||null,wait:lrnAll[0]||null};
+}
+
+function renderDecks(){
+ $('#deck').innerHTML=S.decks.map(d=>`<option value="${esc(d.id)}"${d.id===S.cur?' selected':''}>${esc(d.name)}</option>`).join('');
+ const d=S.decks.find(d=>d.id===S.cur);$('#renameIn').value=d?d.name:'';$('#lim').value=S.lim;
+}
+function renderStudy(){
+ clearTimeout(timer);
+ const Q=queue();
+ $('#stats').innerHTML=`<span><b>${Q.nw.length}</b>新卡</span><span><b>${Q.lrnAll.length}</b>學習中</span><span><b>${Q.rev.length}</b>待複習</span>`;
+ const g=$('#stage');
+ $('#undo').disabled=!undoStack.length;
+ cur=Q.next;$('#editCur').hidden=!cur;
+ if(!cur){
+  if(Q.wait){const ms=Q.wait.due-Date.now();g.innerHTML=`<div class="card done"><b>稍等一下</b><p class="note">下一張學習中的卡片約 ${esc(fmt(ms))}後出現。</p></div>`;timer=setTimeout(renderStudy,Math.min(Math.max(ms,1e3),3e4));return}
+  const total=deckCards().length;
+  g.innerHTML=`<div class="card done"><b>${total?'今天完成了':'這個牌組還沒有卡片'}</b><p class="note">${total?'明天再來。想多學可以到「匯入／備份」調高新卡上限。':'到「卡片」新增，或從「匯入／備份」貼上一整批。'}</p></div>`;return;
+ }
+ const tag=cur.st==='new'?'新卡':cur.st==='lrn'?'學習中':'複習';
+ g.innerHTML=`<div class="card" id="theCard"><span class="tag">${tag}</span><button class="say" id="say" aria-label="發音">🔊 發音</button>
+  <div class="front">${esc(cur.f)}</div>
+  ${showBack?`<div class="back"><div class="m">${esc(cur.b)}</div>${cur.ex?`<div class="ex">${esc(cur.ex)}</div>`:''}</div>`:`<p class="hint">點卡片或按空白鍵翻面</p>`}</div>
+  ${showBack?`<div class="grades">${['忘了','困難','記得','簡單'].map((l,i)=>{const x=sched(cur,i+1);return `<button class="g${i+1}" data-q="${i+1}">${l}<small>${esc(fmt(x.due-Date.now()))}</small></button>`}).join('')}</div>`:`<div class="grades" style="grid-template-columns:1fr"><button class="pri" id="flip">顯示答案</button></div>`}`;
+}
+function grade(q){
+ if(!cur||!showBack)return;
+ undoStack.push({card:{...cur},today:JSON.parse(JSON.stringify(S.today))});if(undoStack.length>30)undoStack.shift();
+ if(cur.st==='new'){todayN();S.today.n[S.cur]=(S.today.n[S.cur]||0)+1}
+ const x=sched(cur,q),i=S.cards.findIndex(c=>c.id===cur.id);S.cards[i]=x;
+ showBack=false;save();renderStudy();
+}
+function speak(t){try{const u=new SpeechSynthesisUtterance(t);u.lang='en-US';u.rate=.95;speechSynthesis.cancel();speechSynthesis.speak(u)}catch(e){toast('這個瀏覽器不支援發音')}}
+
+function renderCards(){
+ const q=$('#q').value.trim().toLowerCase(),n=Date.now();
+ const cs=deckCards().filter(c=>!q||(c.f+' '+c.b).toLowerCase().includes(q)).sort((a,b)=>b.c-a.c);
+ $('#cnt').textContent=`共 ${deckCards().length} 張${q?`，符合 ${cs.length} 張`:''}`;
+ $('#list').innerHTML=cs.map(c=>{const s=c.st==='new'?'新卡':c.due<=n?'現在要複習':`下次：${fmt(c.due-n)}後`;
+  return `<li><div class="t"><b>${esc(c.f)}</b><span>${esc(c.b)} · ${esc(s)}</span></div><button data-ed="${esc(c.id)}">編輯</button><button data-del="${esc(c.id)}" class="danger">刪除</button></li>`}).join('')||'<li class="note">沒有卡片</li>';
+}
+function editCard(id){
+ const c=S.cards.find(c=>c.id===id);if(!c)return;
+ setView('cards');$('#fid').value=c.id;$('#ff').value=c.f;$('#fb').value=c.b;$('#fe').value=c.ex;
+ $('#formTitle').textContent='編輯卡片';$('#fsave').textContent='儲存';$('#fcancel').hidden=false;$('#ff').focus();
+}
+function resetForm(){$('#form').reset();$('#fid').value='';$('#formTitle').textContent='新增卡片';$('#fsave').textContent='加入';$('#fcancel').hidden=true}
+
+function parseLines(txt){
+ return txt.split(/\r?\n/).map(l=>l.trim()).filter(Boolean).map(l=>{
+  if(l.includes('\t'))return l.split('\t').map(s=>s.trim());
+  const out=[];let f='',inQ=false;
+  for(let i=0;i<l.length;i++){const ch=l[i];
+   if(inQ){if(ch==='"'&&l[i+1]==='"'){f+='"';i++}else if(ch==='"')inQ=false;else f+=ch}
+   else if(ch==='"')inQ=true;else if(ch===','||ch==='，'){out.push(f.trim());f=''}else f+=ch}
+  out.push(f.trim());return out;
+ }).filter(r=>r[0]&&r[1]);
+}
+const csvCell=s=>/[",\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s;
+async function copyOut(t){$('#expOut').value=t;try{await navigator.clipboard.writeText(t);toast('已複製')}catch(e){$('#expOut').select();toast('請手動全選複製')}}
+function armed(btn,label,fn){if(btn.dataset.arm){fn();delete btn.dataset.arm;btn.textContent=label;return}btn.dataset.arm=1;btn.textContent='再按一次確認';setTimeout(()=>{if(btn.dataset.arm){delete btn.dataset.arm;btn.textContent=label}},3000)}
+
+function setView(v){view=v;for(const b of document.querySelectorAll('nav button'))b.setAttribute('aria-selected',b.dataset.v===v);
+ for(const s of ['study','cards','io'])$('#'+s).hidden=s!==v;render()}
+function render(){renderDecks();$('#warn').hidden=canStore;if(view==='study')renderStudy();else if(view==='cards')renderCards()}
+
+document.querySelector('nav').addEventListener('click',e=>{const b=e.target.closest('button');if(b)setView(b.dataset.v)});
+$('#deck').addEventListener('change',e=>{S.cur=e.target.value;showBack=false;undoStack=[];save();resetForm();render()});
+$('#newDeckBtn').addEventListener('click',()=>{$('#newDeckRow').hidden=!$('#newDeckRow').hidden;$('#newDeckName').focus()});
+$('#newDeckOk').addEventListener('click',()=>{const n=$('#newDeckName').value.trim();if(!n)return;const id=uid();S.decks.push({id,name:n});S.cur=id;$('#newDeckName').value='';$('#newDeckRow').hidden=true;save();render();toast('已建立牌組')});
+$('#stage').addEventListener('click',e=>{
+ if(e.target.closest('#say')){e.stopPropagation();cur&&speak(cur.f);return}
+ const g=e.target.closest('[data-q]');if(g){grade(+g.dataset.q);return}
+ if(e.target.closest('#flip')||e.target.closest('#theCard')){if(cur&&!showBack){showBack=true;renderStudy()}}
+});
+document.addEventListener('keydown',e=>{
+ if(view!=='study'||/INPUT|TEXTAREA|SELECT/.test(e.target.tagName))return;
+ if(e.key===' '||e.key==='Enter'){e.preventDefault();if(cur&&!showBack){showBack=true;renderStudy()}}
+ else if(/^[1-4]$/.test(e.key))grade(+e.key);
+ else if(e.key==='z'||e.key==='u')$('#undo').click();
+});
+$('#undo').addEventListener('click',()=>{const u=undoStack.pop();if(!u)return;const i=S.cards.findIndex(c=>c.id===u.card.id);if(i>-1)S.cards[i]=u.card;S.today=u.today;showBack=false;save();renderStudy();toast('已復原')});
+$('#editCur').addEventListener('click',()=>cur&&editCard(cur.id));
+$('#form').addEventListener('submit',e=>{e.preventDefault();
+ const f=$('#ff').value.trim(),b=$('#fb').value.trim(),ex=$('#fe').value.trim(),id=$('#fid').value;if(!f||!b)return;
+ if(id){const c=S.cards.find(c=>c.id===id);if(c)Object.assign(c,{f,b,ex});toast('已儲存');resetForm()}
+ else{S.cards.push(mk(S.cur,f,b,ex));toast('已加入');$('#form').reset();$('#ff').focus()}
+ save();renderCards();
+});
+$('#fcancel').addEventListener('click',resetForm);
+$('#q').addEventListener('input',renderCards);
+$('#list').addEventListener('click',e=>{
+ const ed=e.target.closest('[data-ed]');if(ed){editCard(ed.dataset.ed);return}
+ const del=e.target.closest('[data-del]');if(del)armed(del,'刪除',()=>{S.cards=S.cards.filter(c=>c.id!==del.dataset.del);save();renderCards();toast('已刪除')});
+});
+$('#impFile').addEventListener('change',e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{$('#imp').value=r.result;toast('檔案已讀取，按「匯入」')};r.readAsText(f)});
+$('#impBtn').addEventListener('click',()=>{
+ const rows=parseLines($('#imp').value);if(!rows.length){toast('沒有可匯入的內容');return}
+ const have=new Set(deckCards().map(c=>c.f.toLowerCase()));let n=0,skip=0;
+ for(const r of rows){if(have.has(r[0].toLowerCase())){skip++;continue}S.cards.push(mk(S.cur,r[0],r[1],r[2]));have.add(r[0].toLowerCase());n++}
+ save();$('#imp').value='';$('#impFile').value='';toast(`匯入 ${n} 張${skip?`，略過重複 ${skip} 張`:''}`);
+});
+$('#expCsv').addEventListener('click',()=>copyOut(deckCards().map(c=>[c.f,c.b,c.ex].map(csvCell).join(',')).join('\n')));
+$('#expJson').addEventListener('click',()=>copyOut(JSON.stringify(S)));
+$('#restoreBtn').addEventListener('click',e=>{
+ let d;try{d=JSON.parse($('#restore').value)}catch(err){toast('備份格式不正確');return}
+ if(!d||!Array.isArray(d.decks)||!Array.isArray(d.cards)||!d.decks.length){toast('備份格式不正確');return}
+ armed(e.currentTarget,'還原',()=>{S=d;S.today=S.today||{day:dayKey(),n:{}};S.lim=S.lim??20;if(!S.decks.some(x=>x.id===S.cur))S.cur=S.decks[0].id;undoStack=[];save();$('#restore').value='';render();toast('已還原')});
+});
+$('#lim').addEventListener('change',e=>{S.lim=Math.max(0,Math.min(999,parseInt(e.target.value)||0));save();toast('已更新')});
+$('#renameBtn').addEventListener('click',()=>{const n=$('#renameIn').value.trim(),d=S.decks.find(d=>d.id===S.cur);if(n&&d){d.name=n;save();render();toast('已改名')}});
+$('#delDeck').addEventListener('click',e=>{
+ if(S.decks.length<2){toast('至少要保留一個牌組');return}
+ armed(e.currentTarget,'刪除牌組',()=>{const id=S.cur;S.decks=S.decks.filter(d=>d.id!==id);S.cards=S.cards.filter(c=>c.deck!==id);S.cur=S.decks[0].id;undoStack=[];save();render();toast('已刪除牌組')});
+});
+render();
+if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
+}
+</script>
+</body>
+</html>
