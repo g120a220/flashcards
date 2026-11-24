@@ -1,5 +1,5 @@
 // 離線快取：有網路時一律抓最新版，沒網路才用存起來的版本。
-const CACHE = 'flashbox-v3';
+const CACHE = 'flashbox-v4';
 const FILES = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png', './lib/jszip.min.js', './lib/sql-wasm.js', './lib/sql-wasm.wasm', './lib/fzstd.js'];
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES.map(f => new Request(f, {cache: 'reload'})))).then(() => self.skipWaiting()));
