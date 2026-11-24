@@ -350,7 +350,7 @@ normalize(S);
 function save(){try{localStorage.setItem(K,JSON.stringify(S));canStore=true}catch(e){canStore=false}$('#warn').hidden=canStore}
 save();
 
-let view='study',cur=null,pin=null,showBack=false,undoStack=[],timer=null,drill=null,listF='all',round=null,roundT=null;
+let view='study',cur=null,pin=null,lastGrade=0,showBack=false,undoStack=[],timer=null,drill=null,listF='all',round=null,roundT=null;
 const toast=t=>{const e=$('#toast');e.textContent=t;e.classList.add('on');clearTimeout(e._t);e._t=setTimeout(()=>e.classList.remove('on'),1800)};
 const deckCards=()=>S.cards.filter(c=>c.deck===S.cur);
 function todayN(){if(S.today.day!==dayKey())S.today={day:dayKey(),n:{}};return S.today.n[S.cur]||0}
@@ -506,7 +506,7 @@ function grade(q){
  }
  if(drill){const id=drill.q.shift();if(q===1)drill.q.push(id)}
  if(round){round.n++;$('#roundN').textContent=round.n}
- showBack=false;pin=null;save();renderStudy();
+ showBack=false;pin=null;lastGrade=Date.now();save();renderStudy();
 }
 // 只唸英文：中日韓文字一律去掉，沒有英文字母就不唸
 let enVoice=null;
@@ -520,7 +520,8 @@ function speak(t,quiet){
 }
 // chunk 卡唸英文整句，單字卡唸正面單字（兩者都存在 c.f）
 const speakCard=(c,quiet)=>speak(c.f,quiet);
-function flip(){if(cur&&!showBack){showBack=true;renderStudy();if(S.cfg.auto)speakCard(cur.c,true)}}
+// 評分後 0.5 秒內不翻面：避免連點兩下時，第二下按到下一張的「顯示答案」
+function flip(){if(Date.now()-lastGrade<500)return;if(cur&&!showBack){showBack=true;renderStudy();if(S.cfg.auto)speakCard(cur.c,true)}}
 
 function renderCards(){
  const q=$('#q').value.trim().toLowerCase(),n=Date.now();
