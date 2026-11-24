@@ -71,6 +71,14 @@ label{display:block;font-size:14px;color:var(--mute);margin:10px 0 4px}
 .done b{display:block;font:700 30px "Space Grotesk","Noto Sans TC",sans-serif;margin-bottom:8px}
 .note{font-size:14px;color:var(--mute)}
 .warn{background:var(--hi);color:#1a1a1a;border-radius:10px;padding:10px 14px;font-size:14px;margin-bottom:10px}
+.opts{border:0;padding:0;margin:10px 0 0}
+.opts legend{font-size:14px;color:var(--mute);padding:0;margin-bottom:4px}
+.opt{display:flex;gap:10px;align-items:center;min-height:44px;margin:0;font-size:16px;color:var(--ink);cursor:pointer}
+.opt input{width:20px;height:20px;flex:0 0 auto;accent-color:var(--bg)}
+.opt span{color:var(--mute);font-size:14px}
+.grp{display:flex;gap:8px;align-items:center;margin-top:8px}
+.grp input{flex:1}
+.grp small{flex:0 0 auto;color:var(--mute);font-size:14px;min-width:4em;text-align:right}
 .toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:#141a2e;color:#fff;padding:10px 16px;border-radius:10px;font-size:14px;opacity:0;transition:opacity .2s;pointer-events:none}
 .toast.on{opacity:1}
 [hidden]{display:none!important}
@@ -120,11 +128,20 @@ label{display:block;font-size:14px;color:var(--mute);margin:10px 0 4px}
 
  <section id="io" hidden>
   <div class="panel">
-   <h2>匯入到目前牌組</h2>
-   <p class="note">一行一張：<code>單字,意思,例句</code>。從 Excel 或 Google 試算表直接複製貼上（Tab 分隔）也可以。也能選 Anki 的 <code>.apkg</code> 檔，會取每張筆記的前三個欄位。</p>
+   <h2>匯入</h2>
+   <p class="note">貼上文字會匯入到目前牌組，一行一張：<code>單字,意思,例句</code>。從 Excel 或 Google 試算表直接複製貼上（Tab 分隔）也可以。<br>也能選 Anki 的 <code>.apkg</code> 檔，會取每張筆記的前三個欄位，並可自動建立同名牌組。</p>
    <textarea id="imp" placeholder="ubiquitous,無所不在的,Smartphones are ubiquitous."></textarea>
    <div class="row" style="margin-top:10px"><input type="file" id="impFile"><button class="pri" id="impBtn" style="flex:0 0 auto">匯入</button></div>
    <p class="note" id="impMsg" role="status" aria-live="polite"></p>
+   <div id="apkgBox" hidden>
+    <fieldset class="opts">
+     <legend>匯入到哪裡</legend>
+     <label class="opt"><input type="radio" name="apkgTo" value="new" checked> 匯入到新牌組<span id="apkgNewHint"></span></label>
+     <label class="opt"><input type="radio" name="apkgTo" value="cur"> 匯入到目前牌組「<span id="apkgCurName"></span>」</label>
+    </fieldset>
+    <div id="apkgGroups"></div>
+    <div class="row" style="margin-top:12px"><button class="pri" id="apkgOk">匯入</button><button id="apkgCancel" style="flex:0 0 auto">取消</button></div>
+   </div>
   </div>
   <div class="panel">
    <h2>備份</h2>
@@ -319,28 +336,71 @@ async function readApkg(file){
  if(buf[0]===0x28&&buf[1]===0xb5&&buf[2]===0x2f&&buf[3]===0xfd){if(!window.fzstd)await loadJs('lib/fzstd.js');buf=fzstd.decompress(buf)}
  if(!window.initSqlJs)await loadJs('lib/sql-wasm.js');
  const SQL=await initSqlJs({locateFile:n=>'lib/'+n}),db=new SQL.Database(buf);
- try{const r=db.exec('SELECT flds FROM notes ORDER BY id');
-  const all=(r[0]?.values||[]).map(([x])=>String(x).split('\x1f').slice(0,3).map(ankiText));
-  return {rows:all.filter(r=>r[0]&&r[1]),total:all.length}}
- finally{db.close()}
+ const q=sql=>{try{return db.exec(sql)[0]?.values||[]}catch(e){return null}};
+ try{
+  // 牌組名稱：新版有 decks 表（子牌組用 \x1f 分隔），舊版在 col.decks（JSON，子牌組用 :: 分隔）
+  const names={};
+  const nd=q('SELECT id,name FROM decks');
+  if(nd)for(const [id,n] of nd)names[String(id)]=String(n).split('\x1f').join(' › ');
+  else{const cd=q('SELECT decks FROM col');try{const o=JSON.parse(cd?.[0]?.[0]||'{}');for(const k in o)names[String(k)]=String(o[k].name||'').split('::').join(' › ')}catch(e){}}
+  let rs=q('SELECT n.flds,(SELECT did FROM cards c WHERE c.nid=n.id ORDER BY c.ord LIMIT 1) FROM notes n ORDER BY n.id');
+  if(!rs)rs=(q('SELECT flds FROM notes ORDER BY id')||[]).map(([x])=>[x,null]);
+  const fallback=file.name.replace(/\.(apkg|colpkg)$/i,'')||'Anki 匯入',groups=new Map();let total=0;
+  for(const [flds,did] of rs){total++;
+   const r=String(flds).split('\x1f').slice(0,3).map(ankiText);if(!r[0]||!r[1])continue;
+   const key=did==null?'':String(did);
+   if(!groups.has(key))groups.set(key,{name:(names[key]||'').trim()||fallback,rows:[]});
+   groups.get(key).rows.push(r)}
+  return {groups:[...groups.values()],total};
+ }finally{db.close()}
 }
+const uniqueName=(n,taken)=>{let x=n,i=2;while(taken.has(x))x=`${n} (${i++})`;taken.add(x);return x};
+function addRows(deck,rows){
+ const have=new Set(S.cards.filter(c=>c.deck===deck).map(c=>c.f.toLowerCase()));let n=0,skip=0;
+ for(const r of rows){const k=r[0].toLowerCase();if(have.has(k)){skip++;continue}S.cards.push(mk(deck,r[0],r[1],r[2]));have.add(k);n++}
+ return {n,skip};
+}
+let apkgData=null;
+function showApkg(d){
+ apkgData=d;$('#apkgBox').hidden=false;
+ const taken=new Set(S.decks.map(x=>x.name));
+ $('#apkgCurName').textContent=(S.decks.find(x=>x.id===S.cur)||{}).name||'';
+ $('#apkgNewHint').textContent=d.groups.length>1?`（每個 Anki 牌組各建一個，共 ${d.groups.length} 個）`:'';
+ $('#apkgGroups').innerHTML=d.groups.map((g,i)=>`<div class="grp"><input type="text" data-gi="${i}" value="${esc(uniqueName(g.name,taken))}" aria-label="新牌組名稱"><small>${g.rows.length} 張</small></div>`).join('');
+ document.querySelector('input[name=apkgTo][value=new]').checked=true;$('#apkgGroups').hidden=false;
+}
+function hideApkg(){apkgData=null;$('#apkgBox').hidden=true;$('#apkgGroups').innerHTML='';$('#impFile').value=''}
+$('#apkgBox').addEventListener('change',e=>{if(e.target.name==='apkgTo')$('#apkgGroups').hidden=e.target.value!=='new'});
+$('#apkgCancel').addEventListener('click',()=>{hideApkg();impMsg('已取消')});
+$('#apkgOk').addEventListener('click',()=>{
+ if(!apkgData)return;
+ const to=document.querySelector('input[name=apkgTo]:checked').value;let n=0,skip=0,made=0;
+ if(to==='cur'){const r=addRows(S.cur,apkgData.groups.flatMap(g=>g.rows));n=r.n;skip=r.skip}
+ else{const taken=new Set(S.decks.map(x=>x.name));let first=null;
+  apkgData.groups.forEach((g,i)=>{const inp=document.querySelector(`#apkgGroups [data-gi="${i}"]`);
+   const name=uniqueName((inp&&inp.value.trim())||g.name,taken),id=uid();
+   S.decks.push({id,name});made++;first=first||id;const r=addRows(id,g.rows);n+=r.n;skip+=r.skip});
+  if(first){S.cur=first;showBack=false;undoStack=[]}}
+ save();hideApkg();render();
+ impMsg(`匯入 ${n} 張${made?`，建立 ${made} 個牌組`:''}${skip?`，略過重複 ${skip} 張`:''}`);
+});
 const impMsg=t=>{$('#impMsg').textContent=t;toast(t)};
 $('#impFile').addEventListener('change',async e=>{const f=e.target.files[0];if(!f)return;
  let isZip=/\.(apkg|colpkg)$/i.test(f.name);
  try{const h=new Uint8Array(await f.slice(0,4).arrayBuffer());if(h[0]===0x50&&h[1]===0x4b)isZip=true}catch(err){}
  if(isZip){
   impMsg(`讀取 ${f.name} 中…`);
-  try{const {rows,total}=await readApkg(f);
-   if(!rows.length){impMsg(`apkg 裡有 ${total} 則筆記，但前兩個欄位都沒有文字（可能是圖片或音檔卡），無法匯入`);return}
-   $('#imp').value=rows.map(r=>r.join('\t')).join('\n');
-   impMsg(`讀到 ${rows.length} 張${total>rows.length?`（${total-rows.length} 則沒有文字已略過）`:''}，確認下方內容後按「匯入」`)}
+  hideApkg();
+  try{const d=await readApkg(f),cnt=d.groups.reduce((a,g)=>a+g.rows.length,0);
+   if(!cnt){impMsg(`apkg 裡有 ${d.total} 則筆記，但前兩個欄位都沒有文字（可能是圖片或音檔卡），無法匯入`);return}
+   showApkg(d);
+   impMsg(`讀到 ${cnt} 張${d.total>cnt?`（${d.total-cnt} 則沒有文字已略過）`:''}，選好要匯入到哪裡後按下方「匯入」`)}
   catch(err){console.error(err);impMsg('apkg 讀取失敗：'+(err&&err.message||err))}
   return}
  const r=new FileReader();r.onload=()=>{$('#imp').value=r.result;impMsg('檔案已讀取，按「匯入」')};r.onerror=()=>impMsg('檔案讀取失敗');r.readAsText(f)});
 $('#impBtn').addEventListener('click',()=>{
- const rows=parseLines($('#imp').value);if(!rows.length){impMsg('沒有可匯入的內容：請先選檔案或貼上文字');return}
- const have=new Set(deckCards().map(c=>c.f.toLowerCase()));let n=0,skip=0;
- for(const r of rows){if(have.has(r[0].toLowerCase())){skip++;continue}S.cards.push(mk(S.cur,r[0],r[1],r[2]));have.add(r[0].toLowerCase());n++}
+ const rows=parseLines($('#imp').value);if(!rows.length){impMsg(apkgData?'apkg 請按下方黃色的「匯入」':'沒有可匯入的內容：請先選檔案或貼上文字');return}
+ const {n,skip}=addRows(S.cur,rows);
  save();$('#imp').value='';$('#impFile').value='';impMsg(`匯入 ${n} 張${skip?`，略過重複 ${skip} 張`:''}`);
 });
 $('#expCsv').addEventListener('click',()=>copyOut(deckCards().map(c=>[c.f,c.b,c.ex].map(csvCell).join(',')).join('\n')));
