@@ -124,6 +124,7 @@ label{display:block;font-size:14px;color:var(--mute);margin:10px 0 4px}
    <p class="note">一行一張：<code>單字,意思,例句</code>。從 Excel 或 Google 試算表直接複製貼上（Tab 分隔）也可以。也能選 Anki 的 <code>.apkg</code> 檔，會取每張筆記的前三個欄位。</p>
    <textarea id="imp" placeholder="ubiquitous,無所不在的,Smartphones are ubiquitous."></textarea>
    <div class="row" style="margin-top:10px"><input type="file" id="impFile"><button class="pri" id="impBtn" style="flex:0 0 auto">匯入</button></div>
+   <p class="note" id="impMsg" role="status" aria-live="polite"></p>
   </div>
   <div class="panel">
    <h2>備份</h2>
@@ -136,6 +137,7 @@ label{display:block;font-size:14px;color:var(--mute);margin:10px 0 4px}
   </div>
   <div class="panel">
    <h2>設定</h2>
+   <p class="note">版本 v3（支援 apkg）</p>
    <label for="lim">每個牌組每天的新卡上限</label><input type="number" id="lim" min="0" max="999">
    <label>目前牌組</label>
    <div class="row"><input type="text" id="renameIn"><button id="renameBtn" style="flex:0 0 auto">改名</button><button class="danger" id="delDeck" style="flex:0 0 auto">刪除牌組</button></div>
@@ -311,22 +313,28 @@ async function readApkg(file){
  if(!window.initSqlJs)await loadJs('lib/sql-wasm.js');
  const SQL=await initSqlJs({locateFile:n=>'lib/'+n}),db=new SQL.Database(buf);
  try{const r=db.exec('SELECT flds FROM notes ORDER BY id');
-  return (r[0]?.values||[]).map(([x])=>String(x).split('\x1f').slice(0,3).map(ankiText)).filter(r=>r[0]&&r[1])}
+  const all=(r[0]?.values||[]).map(([x])=>String(x).split('\x1f').slice(0,3).map(ankiText));
+  return {rows:all.filter(r=>r[0]&&r[1]),total:all.length}}
  finally{db.close()}
 }
+const impMsg=t=>{$('#impMsg').textContent=t;toast(t)};
 $('#impFile').addEventListener('change',async e=>{const f=e.target.files[0];if(!f)return;
- if(/\.(apkg|colpkg)$/i.test(f.name)){
-  toast('讀取 apkg 中…');
-  try{const rows=await readApkg(f);if(!rows.length){toast('apkg 裡沒有可用的卡片');return}
-   $('#imp').value=rows.map(r=>r.join('\t')).join('\n');toast(`讀到 ${rows.length} 張，確認後按「匯入」`)}
-  catch(err){console.error(err);toast('apkg 讀取失敗：'+err.message)}
+ let isZip=/\.(apkg|colpkg)$/i.test(f.name);
+ try{const h=new Uint8Array(await f.slice(0,4).arrayBuffer());if(h[0]===0x50&&h[1]===0x4b)isZip=true}catch(err){}
+ if(isZip){
+  impMsg(`讀取 ${f.name} 中…`);
+  try{const {rows,total}=await readApkg(f);
+   if(!rows.length){impMsg(`apkg 裡有 ${total} 則筆記，但前兩個欄位都沒有文字（可能是圖片或音檔卡），無法匯入`);return}
+   $('#imp').value=rows.map(r=>r.join('\t')).join('\n');
+   impMsg(`讀到 ${rows.length} 張${total>rows.length?`（${total-rows.length} 則沒有文字已略過）`:''}，確認下方內容後按「匯入」`)}
+  catch(err){console.error(err);impMsg('apkg 讀取失敗：'+(err&&err.message||err))}
   return}
- const r=new FileReader();r.onload=()=>{$('#imp').value=r.result;toast('檔案已讀取，按「匯入」')};r.readAsText(f)});
+ const r=new FileReader();r.onload=()=>{$('#imp').value=r.result;impMsg('檔案已讀取，按「匯入」')};r.onerror=()=>impMsg('檔案讀取失敗');r.readAsText(f)});
 $('#impBtn').addEventListener('click',()=>{
- const rows=parseLines($('#imp').value);if(!rows.length){toast('沒有可匯入的內容');return}
+ const rows=parseLines($('#imp').value);if(!rows.length){impMsg('沒有可匯入的內容：請先選檔案或貼上文字');return}
  const have=new Set(deckCards().map(c=>c.f.toLowerCase()));let n=0,skip=0;
  for(const r of rows){if(have.has(r[0].toLowerCase())){skip++;continue}S.cards.push(mk(S.cur,r[0],r[1],r[2]));have.add(r[0].toLowerCase());n++}
- save();$('#imp').value='';$('#impFile').value='';toast(`匯入 ${n} 張${skip?`，略過重複 ${skip} 張`:''}`);
+ save();$('#imp').value='';$('#impFile').value='';impMsg(`匯入 ${n} 張${skip?`，略過重複 ${skip} 張`:''}`);
 });
 $('#expCsv').addEventListener('click',()=>copyOut(deckCards().map(c=>[c.f,c.b,c.ex].map(csvCell).join(',')).join('\n')));
 $('#expJson').addEventListener('click',()=>copyOut(JSON.stringify(S)));
