@@ -48,6 +48,8 @@ nav button[aria-selected=true]{background:var(--panel);color:var(--ink);opacity:
 .front{font:700 clamp(30px,8vw,46px)/1.1 "Space Grotesk","Noto Sans TC",sans-serif;text-align:center;margin:28px 0 8px;overflow-wrap:anywhere}
 .back{border-top:2px dashed var(--line);margin-top:18px;padding-top:16px;text-align:center}
 .back .m{font-size:21px;font-weight:500}
+.front.rv{font:700 clamp(26px,7vw,38px)/1.25 "Noto Sans TC",sans-serif}
+.back .m.en{font:700 26px "Space Grotesk",sans-serif}
 .back .ex{color:var(--mute);margin-top:10px;font-style:italic}
 .hint{text-align:center;color:var(--mute);font-size:14px;margin-top:40px}
 .grades{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-top:14px}
@@ -175,7 +177,10 @@ label{display:block;font-size:14px;color:var(--mute);margin:10px 0 4px}
    <p class="note">版本 v4</p>
    <label for="lim">每個牌組每天的新卡上限</label><input type="number" id="lim" min="0" max="999">
    <label>目前牌組</label>
-   <div class="row"><input type="text" id="renameIn"><button id="renameBtn" style="flex:0 0 auto">改名</button></div>
+   <div class="row"><input type="text" id="renameIn" aria-label="目前牌組名稱"><button id="renameBtn" style="flex:0 0 auto">改名</button></div>
+   <label for="dirSel">目前牌組的練習方向</label>
+   <select id="dirSel"><option value="f">正向（英→中）</option><option value="r">反向（中→英）</option><option value="b">雙向</option></select>
+   <p class="note">正向和反向各自有獨立的複習進度。雙向時，同一張卡的兩面不會在同一天接連出現。</p>
   </div>
  </section>
 </div>
@@ -188,6 +193,7 @@ const $=s=>document.querySelector(s);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
 const dayKey=()=>new Date(Date.now()-4*36e5).toDateString();
+const isoDay=(ms=Date.now())=>{const d=new Date(ms-4*36e5);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};
 const rollover=()=>{const d=new Date(Date.now()-4*36e5);d.setHours(0,0,0,0);return d.getTime()+D+4*36e5};
 const mk=(deck,f,b,ex)=>({id:uid(),deck,f,b,ex:ex||'',st:'new',step:0,ivl:0,ease:2.5,reps:0,lapses:0,due:0,c:Date.now()});
 
@@ -220,6 +226,19 @@ const deckCards=()=>S.cards.filter(c=>c.deck===S.cur);
 function todayN(){if(S.today.day!==dayKey())S.today={day:dayKey(),n:{}};return S.today.n[S.cur]||0}
 
 function dueDays(d){return rollover()+(d-1)*D}
+// 反向進度存在 card.r，沒有就當新卡
+const NEWST={st:'new',step:0,ivl:0,ease:2.5,reps:0,lapses:0,due:0},SK=Object.keys(NEWST);
+const pick=x=>{const o={};for(const k of SK)o[k]=x[k];return o};
+const stOf=(c,dir)=>dir==='r'?{...NEWST,...(c.r||{})}:c;
+const deckOf=id=>S.decks.find(d=>d.id===id)||{};
+const dirsOf=id=>{const d=deckOf(id).dir||'f';return d==='b'?['f','r']:[d]};
+function items(cs){const out=[],today=isoDay();
+ for(const c of cs){const ds=dirsOf(c.deck);
+  for(const dir of ds){const s=stOf(c,dir);
+   // 雙向：另一面今天已經複習過，這一面就留到明天（學習中的除外）
+   if(ds.length>1&&s.st!=='lrn'&&c.lr&&c.lr[dir==='f'?'r':'f']===today)continue;
+   out.push({c,dir,s})}}
+ return out}
 function sched(c,q){
  const n=Date.now(),x={...c};
  if(x.st==='rev'){
@@ -244,17 +263,20 @@ function fmt(ms){
  return d<31?d+' 天':d<365?(d/30).toFixed(1).replace('.0','')+' 個月':(d/365).toFixed(1).replace('.0','')+' 年';
 }
 function queue(){
- const n=Date.now(),eod=rollover(),cs=deckCards();
- const lrnAll=cs.filter(c=>c.st==='lrn'&&c.due<eod).sort((a,b)=>a.due-b.due);
- const lrn=lrnAll.filter(c=>c.due<=n);
- const rev=cs.filter(c=>c.st==='rev'&&c.due<eod).sort((a,b)=>a.due-b.due);
- const nw=cs.filter(c=>c.st==='new').sort((a,b)=>a.c-b.c).slice(0,Math.max(0,S.lim-todayN()));
+ const n=Date.now(),eod=rollover(),its=items(deckCards());
+ const lrnAll=its.filter(i=>i.s.st==='lrn'&&i.s.due<eod).sort((a,b)=>a.s.due-b.s.due);
+ const lrn=lrnAll.filter(i=>i.s.due<=n);
+ const rev=its.filter(i=>i.s.st==='rev'&&i.s.due<eod).sort((a,b)=>a.s.due-b.s.due);
+ const seenNew=new Set();
+ const nw=its.filter(i=>i.s.st==='new').sort((a,b)=>a.c.c-b.c.c||(a.dir<b.dir?-1:1))
+  .filter(i=>{if(seenNew.has(i.c.id))return false;seenNew.add(i.c.id);return true})
+  .slice(0,Math.max(0,S.lim-todayN()));
  return {lrnAll,lrn,rev,nw,next:lrn[0]||rev[0]||nw[0]||null,wait:lrnAll[0]||null};
 }
 
 function renderDecks(){
  $('#deck').innerHTML=S.decks.map(d=>`<option value="${esc(d.id)}"${d.id===S.cur?' selected':''}>${esc(d.name)}</option>`).join('');
- const d=S.decks.find(d=>d.id===S.cur);$('#renameIn').value=d?d.name:'';$('#lim').value=S.lim;
+ const d=S.decks.find(d=>d.id===S.cur);$('#renameIn').value=d?d.name:'';$('#lim').value=S.lim;$('#dirSel').value=deckOf(S.cur).dir||'f';
  const cnt={};for(const c of S.cards)cnt[c.deck]=(cnt[c.deck]||0)+1;
  $('#deckList').innerHTML=S.decks.map(d=>`<li><div class="t"><b>${esc(d.name)}</b><span>${cnt[d.id]||0} 張${d.id===S.cur?' · 目前牌組':''}</span></div><button class="danger" data-deldeck="${esc(d.id)}">刪除</button></li>`).join('');
 }
@@ -270,17 +292,21 @@ function renderStudy(){
   const total=deckCards().length;
   g.innerHTML=`<div class="card done"><b>${total?'今天完成了':'這個牌組還沒有卡片'}</b><p class="note">${total?'明天再來。想多學可以到「匯入／備份」調高新卡上限。':'到「卡片」新增，或從「匯入／備份」貼上一整批。'}</p></div>`;return;
  }
- const tag=cur.st==='new'?'新卡':cur.st==='lrn'?'學習中':'複習';
- g.innerHTML=`<div class="card" id="theCard"><span class="tag">${tag}</span><button class="say" id="say" aria-label="發音">🔊 發音</button>
-  <div class="front">${esc(cur.f)}</div>
-  ${showBack?`<div class="back"><div class="m">${esc(cur.b)}</div>${cur.ex?`<div class="ex">${esc(cur.ex)}</div>`:''}</div>`:`<p class="hint">點卡片或按空白鍵翻面</p>`}</div>
-  ${showBack?`<div class="grades">${['忘了','困難','記得','簡單'].map((l,i)=>{const x=sched(cur,i+1);return `<button class="g${i+1}" data-q="${i+1}">${l}<small>${esc(fmt(x.due-Date.now()))}</small></button>`}).join('')}</div>`:`<div class="grades" style="grid-template-columns:1fr"><button class="pri" id="flip">顯示答案</button></div>`}`;
+ const rv=cur.dir==='r',c=cur.c;
+ const tag=(cur.s.st==='new'?'新卡':cur.s.st==='lrn'?'學習中':'複習')+(rv?' · 反向':'');
+ g.innerHTML=`<div class="card" id="theCard"><span class="tag">${tag}</span>${rv&&!showBack?'':'<button class="say" id="say" aria-label="唸英文">🔊 發音</button>'}
+  <div class="front${rv?' rv':''}">${esc(rv?c.b:c.f)}</div>
+  ${showBack?`<div class="back">${rv?`<div class="m en">${esc(c.f)}</div>`:`<div class="m">${esc(c.b)}</div>`}${c.ex?`<div class="ex">${esc(c.ex)}</div>`:''}</div>`:`<p class="hint">點卡片或按空白鍵翻面</p>`}</div>
+  ${showBack?`<div class="grades">${['忘了','困難','記得','簡單'].map((l,i)=>{const x=sched(cur.s,i+1);return `<button class="g${i+1}" data-q="${i+1}">${l}<small>${esc(fmt(x.due-Date.now()))}</small></button>`}).join('')}</div>`:`<div class="grades" style="grid-template-columns:1fr"><button class="pri" id="flip">顯示答案</button></div>`}`;
 }
 function grade(q){
  if(!cur||!showBack)return;
- undoStack.push({card:{...cur},today:JSON.parse(JSON.stringify(S.today))});if(undoStack.length>30)undoStack.shift();
- if(cur.st==='new'){todayN();S.today.n[S.cur]=(S.today.n[S.cur]||0)+1}
- const x=sched(cur,q),i=S.cards.findIndex(c=>c.id===cur.id);S.cards[i]=x;
+ const c=S.cards.find(x=>x.id===cur.c.id);if(!c)return;
+ undoStack.push({card:JSON.parse(JSON.stringify(c)),today:JSON.parse(JSON.stringify(S.today))});if(undoStack.length>30)undoStack.shift();
+ if(cur.s.st==='new'){todayN();S.today.n[S.cur]=(S.today.n[S.cur]||0)+1}
+ const x=pick(sched(cur.s,q));
+ if(cur.dir==='r')c.r=x;else Object.assign(c,x);
+ c.lr={...(c.lr||{}),[cur.dir]:isoDay()};
  showBack=false;save();renderStudy();
 }
 function speak(t){try{const u=new SpeechSynthesisUtterance(t);u.lang='en-US';u.rate=.95;speechSynthesis.cancel();speechSynthesis.speak(u)}catch(e){toast('這個瀏覽器不支援發音')}}
@@ -289,7 +315,8 @@ function renderCards(){
  const q=$('#q').value.trim().toLowerCase(),n=Date.now();
  const cs=deckCards().filter(c=>!q||(c.f+' '+c.b).toLowerCase().includes(q)).sort((a,b)=>b.c-a.c);
  $('#cnt').textContent=`共 ${deckCards().length} 張${q?`，符合 ${cs.length} 張`:''}`;
- $('#list').innerHTML=cs.map(c=>{const s=c.st==='new'?'新卡':c.due<=n?'現在要複習':`下次：${fmt(c.due-n)}後`;
+ const ds=dirsOf(S.cur),lab=x=>x.st==='new'?'新卡':x.due<=n?'現在要複習':`下次 ${fmt(x.due-n)}後`;
+ $('#list').innerHTML=cs.map(c=>{const s=ds.length>1?`正：${lab(c)} · 反：${lab(stOf(c,'r'))}`:ds[0]==='r'?`反向：${lab(stOf(c,'r'))}`:lab(c);
   return `<li><div class="t"><b>${esc(c.f)}</b><span>${esc(c.b)} · ${esc(s)}</span></div><button data-ed="${esc(c.id)}">編輯</button><button data-del="${esc(c.id)}" class="danger">刪除</button></li>`}).join('')||'<li class="note">沒有卡片</li>';
 }
 function editCard(id){
@@ -318,11 +345,12 @@ function setView(v){view=v;for(const b of document.querySelectorAll('nav button'
 function render(){renderDecks();renderBackup();$('#warn').hidden=canStore;if(view==='study')renderStudy();else if(view==='cards')renderCards()}
 
 document.querySelector('nav').addEventListener('click',e=>{const b=e.target.closest('button');if(b)setView(b.dataset.v)});
+$('#dirSel').addEventListener('change',e=>{const d=deckOf(S.cur);if(!d.id)return;d.dir=e.target.value;showBack=false;save();render();toast('已更新練習方向')});
 $('#deck').addEventListener('change',e=>{S.cur=e.target.value;showBack=false;undoStack=[];save();resetForm();render()});
 $('#newDeckBtn').addEventListener('click',()=>{$('#newDeckRow').hidden=!$('#newDeckRow').hidden;$('#newDeckName').focus()});
 $('#newDeckOk').addEventListener('click',()=>{const n=$('#newDeckName').value.trim();if(!n)return;const id=uid();S.decks.push({id,name:n});S.cur=id;$('#newDeckName').value='';$('#newDeckRow').hidden=true;save();render();toast('已建立牌組')});
 $('#stage').addEventListener('click',e=>{
- if(e.target.closest('#say')){e.stopPropagation();cur&&speak(cur.f);return}
+ if(e.target.closest('#say')){e.stopPropagation();cur&&speak(cur.c.f);return}
  const g=e.target.closest('[data-q]');if(g){grade(+g.dataset.q);return}
  if(e.target.closest('#flip')||e.target.closest('#theCard')){if(cur&&!showBack){showBack=true;renderStudy()}}
 });
@@ -333,7 +361,7 @@ document.addEventListener('keydown',e=>{
  else if(e.key==='z'||e.key==='u')$('#undo').click();
 });
 $('#undo').addEventListener('click',()=>{const u=undoStack.pop();if(!u)return;const i=S.cards.findIndex(c=>c.id===u.card.id);if(i>-1)S.cards[i]=u.card;S.today=u.today;showBack=false;save();renderStudy();toast('已復原')});
-$('#editCur').addEventListener('click',()=>cur&&editCard(cur.id));
+$('#editCur').addEventListener('click',()=>cur&&editCard(cur.c.id));
 $('#form').addEventListener('submit',e=>{e.preventDefault();
  const f=$('#ff').value.trim(),b=$('#fb').value.trim(),ex=$('#fe').value.trim(),id=$('#fid').value;if(!f||!b)return;
  if(id){const c=S.cards.find(c=>c.id===id);if(c)Object.assign(c,{f,b,ex});toast('已儲存');resetForm()}
@@ -441,7 +469,6 @@ $('#restoreBtn').addEventListener('click',e=>{
  const d=parseBackup($('#restore').value);if(!d){toast('備份格式不正確');return}
  armed(e.currentTarget,'還原',()=>{applyRestore(d);$('#restore').value='';toast('已還原')});
 });
-const isoDay=(ms=Date.now())=>{const d=new Date(ms-4*36e5);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};
 const fmtDate=ms=>{const d=new Date(ms);return `${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()}`};
 $('#bakFile').addEventListener('click',async()=>{
  const name=`flashcards-backup-${isoDay()}.json`,text=backupText();
